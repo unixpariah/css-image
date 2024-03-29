@@ -106,8 +106,12 @@ mod tests {
     #[test]
     fn test_parse() {
         let css = "body { color: red; font-size: 2rem; width: 4; height: 2; } aaa { coalor: red; width: 1; height: 2; }".to_string();
-
-        println!("{:?}", parse(css.clone()));
         assert!(parse(css).is_ok());
+
+        let css = "body { color: red; font-size: 2rem; }".to_string();
+        assert!(parse(css).is_err());
+
+        let css = "body { color: red; font-size: 2rem; width: four; height: two; }".to_string();
+        assert!(parse(css).is_err());
     }
 }
