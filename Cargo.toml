@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cairo-rs = "0.19.2"
+cairo-rs = { version = "0.19.2", features = ["png"] }
