@@ -2,39 +2,97 @@ mod error;
 
 use cairo::{Context, ImageSurface};
 use error::CssError;
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error};
+
+struct Font {
+    family: String,
+    size: f64,
+    color: String,
+    weight: String,
+    text: String,
+}
+
+impl Font {
+    fn new(
+        family: Option<String>,
+        size: Option<f64>,
+        color: Option<String>,
+        weight: Option<String>,
+        text: String,
+    ) -> Self {
+        let family = family.unwrap_or("sans-serif".to_string());
+        let size = size.unwrap_or(16.0);
+        let color = color.unwrap_or("black".to_string());
+        let weight = weight.unwrap_or("normal".to_string());
+
+        Self {
+            family,
+            size,
+            color,
+            weight,
+            text,
+        }
+    }
+}
 
 struct Style {
     name: String,
-    dimensions: (usize, usize),
+    dimensions: (f64, f64),
     styling: Vec<String>,
-    text: Option<String>,
+    text: Option<Font>,
 }
 
 impl Style {
-    fn new(name: String, styling: Vec<String>) -> Result<Self, CssError> {
+    fn new(name: String, styling: Vec<String>) -> Result<Self, CssError<'static>> {
         let width = styling
             .iter()
             .find(|s| s.contains("width:"))
-            .ok_or(CssError::SizeError("Width not found"))?
+            .ok_or(CssError::SizeError("SizeError: Width not found"))?
             .split(':')
             .collect::<Vec<&str>>()[1]
             .trim()
-            .parse::<usize>()?;
+            .parse::<f64>()?;
 
         let height = styling
             .iter()
             .find(|s| s.contains("height:"))
-            .ok_or(CssError::SizeError("Height not found"))?
+            .ok_or(CssError::SizeError("SizeError: Height not found"))?
             .split(':')
             .collect::<Vec<&str>>()[1]
             .trim()
-            .parse::<usize>()?;
+            .parse::<f64>()?;
 
         let text = styling
             .iter()
             .find(|s| s.contains("content:"))
             .map(|s| s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
+
+        let family = styling
+            .iter()
+            .find(|s| s.contains("font-family:"))
+            .map(|s| s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
+
+        let size = styling
+            .iter()
+            .find(|s| s.contains("font-size:"))
+            .and_then(|s| {
+                s.split(':').collect::<Vec<&str>>()[1]
+                    .trim()
+                    .parse::<f64>()
+                    .ok()
+            });
+
+        let color = styling
+            .iter()
+            .find(|s| s.contains("color:"))
+            .map(|s| s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
+
+        let weight = styling
+            .iter()
+            .find(|s| s.contains("font-weight:"))
+            .map(|s| s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
+
+        let text = text.map(|text| Font::new(family, size, color, weight, text));
 
         Ok(Self {
             name,
@@ -45,7 +103,7 @@ impl Style {
     }
 }
 
-pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError> {
+pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
     let mut styles = vec![];
     while !css.is_empty() {
         let opening_brace_pos = css.find('{');
@@ -79,22 +137,29 @@ pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError> {
 
     let mut output = HashMap::new();
 
-    styles.iter().for_each(|style| {
-        style.styling.iter().for_each(|_styling| {});
+    styles
+        .iter()
+        .try_for_each(|style| {
+            let surface = ImageSurface::create(
+                cairo::Format::ARgb32,
+                style.dimensions.0 as i32,
+                style.dimensions.1 as i32,
+            )?;
+            let context = Context::new(&surface)?;
+            if let Some(text) = &style.text {
+                _ = context.show_text(text.text.as_str());
+            }
 
-        let surface = ImageSurface::create(
-            cairo::Format::ARgb32,
-            style.dimensions.0 as i32,
-            style.dimensions.1 as i32,
-        )
-        .expect("Failed to create ImageSurface");
-        let _context = Context::new(&surface);
+            style.styling.iter().for_each(|_| {});
 
-        let mut img = Vec::new();
-        surface.write_to_png(&mut img).unwrap();
+            let mut img = Vec::new();
+            surface.write_to_png(&mut img)?;
 
-        output.insert(style.name.clone(), img);
-    });
+            output.insert(style.name.clone(), img);
+
+            Ok::<(), Box<dyn Error>>(())
+        })
+        .map_err(|_| CssError::ParseError)?;
 
     Ok(output)
 }
@@ -105,13 +170,19 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        let css = "body { color: red; font-size: 2rem; width: 4; height: 2; } aaa { coalor: red; width: 1; height: 2; }".to_string();
-        assert!(parse(css).is_ok());
+        let css = "body { color: red; font-size: 2; width: 4.0; height: 2.0; } aaa { color: red; width: 1.0; height: 2.0; }".to_string();
+        let result = parse(css);
+        //println!("{:?}", result);
+        assert!(result.is_ok());
 
         let css = "body { color: red; font-size: 2rem; }".to_string();
-        assert!(parse(css).is_err());
+        let result = parse(css);
+        println!("{:?}", result);
+        assert!(result.is_err());
 
         let css = "body { color: red; font-size: 2rem; width: four; height: two; }".to_string();
-        assert!(parse(css).is_err());
+        let result = parse(css);
+        println!("{:?}", result);
+        assert!(result.is_err());
     }
 }
