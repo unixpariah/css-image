@@ -24,18 +24,56 @@ impl Error for CssError<'_> {}
 
 impl From<std::num::ParseFloatError> for CssError<'_> {
     fn from(_: std::num::ParseFloatError) -> Self {
-        CssError::SizeError("SizeError: ParseFloatError")
+        CssError::SizeError("ParseFloatError")
     }
 }
 
 impl From<std::num::ParseIntError> for CssError<'_> {
     fn from(_: std::num::ParseIntError) -> Self {
-        CssError::SizeError("SizeError: ParseIntError")
+        CssError::SizeError("ParseIntError")
     }
 }
 
 impl From<&str> for CssError<'_> {
     fn from(_: &str) -> Self {
-        CssError::ContentError("SizeError: &str")
+        CssError::ContentError("&str")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_css_error() {
+        let error = CssError::SizeError("Test");
+        assert_eq!(error.to_string(), "SizeError: Test");
+
+        let error = CssError::ContentError("Test");
+        assert_eq!(error.to_string(), "ContentError: Test");
+
+        let error = CssError::ParseError;
+        assert_eq!(error.to_string(), "ParseError: Failed to parse CSS");
+
+        let error = CssError::FontError("Test");
+        assert_eq!(error.to_string(), "FontError: Test");
+
+        let error = CssError::SizeError("Test");
+        assert_eq!(error.to_string(), "SizeError: Test");
+
+        let error = CssError::SizeError("Test");
+        assert_eq!(error.to_string(), "SizeError: Test");
+
+        let error = "";
+        let error = CssError::from(error);
+        assert_eq!(error.to_string(), "ContentError: &str");
+
+        let error = "".parse::<f32>().unwrap_err();
+        let error = CssError::from(error);
+        assert_eq!(error.to_string(), "SizeError: ParseFloatError");
+
+        let error = "".parse::<i32>().unwrap_err();
+        let error = CssError::from(error);
+        assert_eq!(error.to_string(), "SizeError: ParseIntError");
     }
 }

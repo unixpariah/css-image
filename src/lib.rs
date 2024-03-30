@@ -224,30 +224,35 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        let css =
-            r#"body { color: #FF0000; font-size: 20; width: 100; height: 100; content: "aaaa"; font-weight: bold; }"#
-                .to_string();
+        let css = r#"body { background-color: #FFFFFF; width: 100; height: 100; }"#.to_string();
         let result = parse(css);
         assert!(result.is_ok());
 
         let css =
-            r#"body { color: red; font-size: 20; width: 100; height: 100; content: "aaaa"; font-weight: bold; }"#
+            r#"body { background-color: rgba(255, 255, 255, 255); width: 100; height: 100; }"#
                 .to_string();
         let result = parse(css);
         assert!(result.is_ok());
 
-        let css =
-            r#"body { color: rgb(0, 0, 0); font-size: 20; width: 100; height: 100; content: "aaaa"; font-weight: bold; background-color: rgb(0, 255, 0, 150); }"#
-                .to_string();
+        let css = r#"body { background-color: rgb(255, 255, 255); width: 100; height: 100; }"#
+            .to_string();
         let result = parse(css);
         assert!(result.is_ok());
 
-        let css = "body { color: red; font-size: 2rem; }".to_string();
+        let css = r#"body { background-color: red; width: 100; height: 100; }"#.to_string();
+        let result = parse(css);
+        assert!(result.is_ok());
+
+        let css = r#"body { width: 100; height: 100; font-size: 20; font-style: italic; font-weight: bold; color: red; content: "aaa"; }"#.to_string();
+        let result = parse(css);
+        assert!(result.is_ok());
+
+        let css = "body { }".to_string();
         let result = parse(css);
         println!("{:?}", result);
         assert!(result.is_err());
 
-        let css = "body { color: red; font-size: 2rem; width: four; height: two; }".to_string();
+        let css = "body { width: four; height: two; }".to_string();
         let result = parse(css);
         println!("{:?}", result);
         assert!(result.is_err());

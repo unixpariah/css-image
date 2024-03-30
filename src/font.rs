@@ -77,3 +77,93 @@ impl Font {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_font() {
+        let font = Font::new(None, None, None, None, None, "Test".to_string()).unwrap();
+        assert_eq!(font.family, "Arial");
+        assert_eq!(font.size, 16.0);
+        assert_eq!(font.color, [0.0, 0.0, 0.0]);
+        assert_eq!(font.weight, cairo::FontWeight::Normal);
+        assert_eq!(font.text, "Test");
+
+        let font = Font::new(
+            Some("Arial".to_string()),
+            Some(16.0),
+            Some("black".to_string()),
+            Some("bold".to_string()),
+            Some("italic".to_string()),
+            "Test".to_string(),
+        )
+        .unwrap();
+        assert_eq!(font.family, "Arial");
+        assert_eq!(font.size, 16.0);
+        assert_eq!(font.color, [0.0, 0.0, 0.0]);
+        assert_eq!(font.weight, cairo::FontWeight::Bold);
+        assert_eq!(font.text, "Test");
+
+        let font = Font::new(
+            Some("Arial".to_string()),
+            Some(16.0),
+            Some("#000000".to_string()),
+            Some("normal".to_string()),
+            Some("normal".to_string()),
+            "Test".to_string(),
+        )
+        .unwrap();
+        assert_eq!(font.family, "Arial");
+        assert_eq!(font.size, 16.0);
+        assert_eq!(font.color, [0.0, 0.0, 0.0]);
+        assert_eq!(font.weight, cairo::FontWeight::Normal);
+        assert_eq!(font.text, "Test");
+
+        let font = Font::new(
+            Some("Arial".to_string()),
+            Some(16.0),
+            Some("rgb(0,0,0)".to_string()),
+            Some("bold".to_string()),
+            Some("italic".to_string()),
+            "Test".to_string(),
+        )
+        .unwrap();
+        assert_eq!(font.family, "Arial");
+        assert_eq!(font.size, 16.0);
+        assert_eq!(font.color, [0.0, 0.0, 0.0]);
+        assert_eq!(font.weight, cairo::FontWeight::Bold);
+        assert_eq!(font.text, "Test");
+
+        let font = Font::new(
+            Some("Arial".to_string()),
+            Some(16.0),
+            Some("rgb(0,0,0)".to_string()),
+            Some("bold".to_string()),
+            Some("".to_string()),
+            "Test".to_string(),
+        );
+        assert!(font.is_err());
+
+        let font = Font::new(
+            Some("Arial".to_string()),
+            Some(16.0),
+            Some("".to_string()),
+            Some("bold".to_string()),
+            Some("italic".to_string()),
+            "Test".to_string(),
+        );
+        assert!(font.is_err());
+
+        let font = Font::new(
+            Some("Arial".to_string()),
+            Some(16.0),
+            Some("rgb(0,0,0)".to_string()),
+            Some("".to_string()),
+            Some("italic".to_string()),
+            "Test".to_string(),
+        );
+        assert!(font.is_err());
+    }
+}
