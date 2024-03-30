@@ -6,7 +6,11 @@ mod tests {
 
     #[test]
     fn integration() {
-        let css = r#"body { background-color: #FFFFFF; width: 100px; height: 100px; }"#.to_string();
+        let css = r#"
+        body { background-color: #FFFFFF; width: 100px; height: 100px; }
+        "#
+        .to_string();
+
         let result = parse(css);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 1);
@@ -34,10 +38,31 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 1);
 
-        let css = r#"body { width: auto; height: auto; font-size: 20; font-style: italic; font-weight: bold; color: red; content: "aaa"; }"#.to_string();
+        let css = r#"
+        body { 
+            width: auto; 
+            height: auto; 
+            font-size: 20; 
+            font-style: italic; 
+            font-weight: bold; 
+            color: red; 
+            content: "aaa"; 
+        }
+
+        body2 { 
+            width: auto; 
+            height: auto; 
+            font-size: 20; 
+            font-style: italic; 
+            font-weight: bold; 
+            color: red; 
+            content: "aaa"; 
+        }
+        "#
+        .to_string();
         let result = parse(css);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 1);
+        assert_eq!(result.unwrap().len(), 2);
     }
 
     #[test]

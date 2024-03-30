@@ -24,7 +24,7 @@ pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'stat
     }
 
     let mut styles = vec![];
-    while !css.is_empty() {
+    while !css.trim().is_empty() {
         let opening_brace_pos = css.find('{');
         let closing_brace_pos = css.find('}');
 
