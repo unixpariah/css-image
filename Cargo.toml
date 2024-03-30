@@ -1,7 +1,14 @@
 [package]
-name = "css"
+name = "css-image"
 version = "0.1.0"
 edition = "2021"
+description = "Library for rendering images from css"
+license = "MIT"
+repository = "https://github.com/unixpariah/css-image"
+readme = "README.md"
+keywords = ["css", "image", "rendering"]
+categories = ["graphics"]
+authors = ["unixpariah"]
 
 [dependencies]
 cairo-rs = { version = "0.19.2", features = ["png"] }

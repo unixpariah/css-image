@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use css::parse;
+use css_image::parse;
 
 fn bench_resize(c: &mut Criterion) {
     let css = r#"one { background-color: #FFFFFF; width: 100px; height: 100px; }"#.to_string();

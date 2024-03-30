@@ -1,4 +1,4 @@
-use css::parse;
+use css_image::parse;
 
 #[cfg(test)]
 mod tests {

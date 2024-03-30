@@ -8,12 +8,12 @@ use error::CssError;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
-/// Parse CSS into a HashMap of styles
+/// Parse CSS into a HashMap of images.
 ///
 /// # Examples
 ///
 /// ```
-/// use css::parse;
+/// use css_image::parse;
 ///
 /// let css = r#"body { background-color: #FFFFFF; width: 100px; height: 100px; }"#.to_string();
 /// let result = parse(css);
