@@ -1,145 +1,23 @@
 mod error;
 mod font;
+mod style;
 
-use crate::font::Font;
+use crate::style::Style;
 use cairo::{Context, ImageSurface};
 use error::CssError;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
-struct Style {
-    name: String,
-    dimensions: (f64, f64),
-    styling: Vec<String>,
-    text: Option<Font>,
-    background: [f64; 4],
-}
-
-impl Style {
-    fn new(name: String, styling: Vec<String>) -> Result<Self, CssError<'static>> {
-        let width = styling
-            .iter()
-            .find(|s| s.contains("width:"))
-            .ok_or(CssError::SizeError("SizeError: Width not found"))?
-            .split(':')
-            .collect::<Vec<&str>>()[1]
-            .trim()
-            .parse::<f64>()?;
-
-        let height = styling
-            .iter()
-            .find(|s| s.contains("height:"))
-            .ok_or(CssError::SizeError("SizeError: Height not found"))?
-            .split(':')
-            .collect::<Vec<&str>>()[1]
-            .trim()
-            .parse::<f64>()?;
-
-        let background = styling
-            .iter()
-            .find_map(|s| {
-                if s.contains("background-color:") {
-                    let parts: Vec<&str> = s.split(':').collect();
-                    let color = parts.get(1)?.trim().to_string();
-                    let color = match color.as_str() {
-                        "black" => [0.0, 0.0, 0.0, 1.0],
-                        "white" => [1.0, 1.0, 1.0, 1.0],
-                        "red" => [1.0, 0.0, 0.0, 1.0],
-                        "green" => [0.0, 1.0, 0.0, 1.0],
-                        "blue" => [0.0, 0.0, 1.0, 1.0],
-                        hex if hex.starts_with('#') => {
-                            let hex = hex.trim_start_matches('#');
-                            let r = u8::from_str_radix(&hex[0..2], 16).ok()? as f64 / 255.0;
-                            let g = u8::from_str_radix(&hex[2..4], 16).ok()? as f64 / 255.0;
-                            let b = u8::from_str_radix(&hex[4..6], 16).ok()? as f64 / 255.0;
-                            [r, g, b, 1.0]
-                        }
-                        rgb if rgb.starts_with("rgb(") => {
-                            let rgb = rgb.trim_start_matches("rgb(").trim_end_matches(')');
-                            let mut parts = rgb.split(',');
-                            let r = parts.next()?;
-                            let g = parts.next()?;
-                            let b = parts.next()?;
-                            let r = r.trim().parse::<f64>().ok()? / 255.0;
-                            let g = g.trim().parse::<f64>().ok()? / 255.0;
-                            let b = b.trim().parse::<f64>().ok()? / 255.0;
-                            [r, g, b, 1.0]
-                        }
-                        rgba if rgba.starts_with("rgba(") => {
-                            let rgba = rgba.trim_start_matches("rgba(").trim_end_matches(')');
-                            let mut parts = rgba.split(',');
-                            let r = parts.next()?;
-                            let g = parts.next()?;
-                            let b = parts.next()?;
-                            let a = parts.next()?;
-                            let r = r.trim().parse::<f64>().ok()? / 255.0;
-                            let g = g.trim().parse::<f64>().ok()? / 255.0;
-                            let b = b.trim().parse::<f64>().ok()? / 255.0;
-                            let a = a.trim().parse::<f64>().ok()? / 255.0;
-                            [r, g, b, a]
-                        }
-                        _ => return None,
-                    };
-                    Some(color)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or([0.0, 0.0, 0.0, 1.0]);
-
-        let text: Option<String> = styling.iter().find_map(|s| {
-            if s.contains("content:") {
-                let parts: Vec<&str> = s.split(':').collect();
-                Some(parts.get(1)?.trim().replace(['"', ';'], ""))
-            } else {
-                None
-            }
-        });
-
-        let family = styling
-            .iter()
-            .find(|s| s.contains("font-family:"))
-            .map(|s| s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
-
-        let size = styling
-            .iter()
-            .find(|s| s.contains("font-size:"))
-            .and_then(|s| {
-                s.split(':').collect::<Vec<&str>>()[1]
-                    .trim()
-                    .parse::<f64>()
-                    .ok()
-            });
-
-        let color = styling
-            .iter()
-            .find(|s| s.contains("color:"))
-            .map(|s| s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
-
-        let weight = styling
-            .iter()
-            .find(|s| s.contains("font-weight:"))
-            .map(|s| s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
-
-        let slant = styling
-            .iter()
-            .find(|s| s.contains("font-style:"))
-            .map(|s| s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
-
-        let text = text
-            .map(|text| Font::new(family, size, color, weight, slant, text))
-            .transpose()?;
-
-        Ok(Self {
-            name,
-            text,
-            dimensions: (width, height),
-            styling,
-            background,
-        })
-    }
-}
-
+/// Parse CSS into a HashMap of styles
+///
+/// # Examples
+///
+/// ```
+/// use css::parse;
+///
+/// let css = r#"body { background-color: #FFFFFF; width: 100px; height: 100px; }"#.to_string();
+/// let result = parse(css);
+/// ```
 pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
     if css.is_empty() {
         return Err(CssError::ContentError("Empty CSS"));
@@ -179,12 +57,27 @@ pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'stat
     Ok(styles
         .par_iter()
         .filter_map(|style| {
-            let surface = ImageSurface::create(
-                cairo::Format::ARgb32,
-                style.dimensions.0 as i32,
-                style.dimensions.1 as i32,
-            )
-            .ok()?;
+            let mut width = style.dimensions.0 as i32;
+            let mut height = style.dimensions.1 as i32;
+
+            if (width <= 0 || height <= 0) && style.text.is_some() {
+                let surface = ImageSurface::create(cairo::Format::ARgb32, 0, 0).ok()?;
+                let context = Context::new(&surface).ok()?;
+                context.select_font_face(
+                    style.text.as_ref()?.family.as_str(),
+                    style.text.as_ref()?.slant,
+                    style.text.as_ref()?.weight,
+                );
+                context.set_font_size(style.text.as_ref()?.size);
+                let extents = context
+                    .text_extents(style.text.as_ref()?.text.as_str())
+                    .ok()?;
+
+                width = extents.width() as i32;
+                height = extents.height() as i32;
+            }
+
+            let surface = ImageSurface::create(cairo::Format::ARgb32, width, height).ok()?;
             let context = Context::new(&surface).ok()?;
 
             context.set_source_rgba(
@@ -202,8 +95,6 @@ pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'stat
                 context.move_to(0.0, style.dimensions.1);
                 _ = context.show_text(text.text.as_str());
             }
-
-            style.styling.iter().for_each(|_| {});
 
             let mut img = Vec::new();
             surface.write_to_png(&mut img).ok()?;

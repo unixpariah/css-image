@@ -1,5 +1,6 @@
 use crate::error::CssError;
 
+#[derive(Debug, PartialEq)]
 pub(crate) struct Font {
     pub(crate) family: String,
     pub(crate) size: f64,
