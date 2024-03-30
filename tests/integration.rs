@@ -57,6 +57,7 @@ mod tests {
             font-weight: bold; 
             color: red; 
             content: "aaa"; 
+            background-color: #FF0000;
         }
         "#
         .to_string();
@@ -78,6 +79,7 @@ mod tests {
 
     #[test]
     fn wrong_size() {
+        // Wrong size will be fit to content
         let css = r#"body { width: 100px; height: two; }"#.to_string();
         let result = parse(css);
         assert!(result.is_err());
@@ -85,5 +87,9 @@ mod tests {
         let css = r#"body { width: four; height: 100px; }"#.to_string();
         let result = parse(css);
         assert!(result.is_err());
+
+        let css = r#"body { content: "aaa" }"#.to_string();
+        let result = parse(css);
+        assert!(result.is_ok());
     }
 }

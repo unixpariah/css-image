@@ -18,67 +18,86 @@ use std::collections::HashMap;
 /// let css = r#"body { background-color: #FFFFFF; width: 100px; height: 100px; }"#.to_string();
 /// let result = parse(css);
 /// ```
-pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
+pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
     if css.is_empty() {
         return Err(CssError::ContentError("Empty CSS"));
     }
 
-    let mut styles = vec![];
-    while !css.trim().is_empty() {
-        let opening_brace_pos = css.find('{');
-        let closing_brace_pos = css.find('}');
+    let styles = css
+        .par_split('}')
+        .filter_map(|s| {
+            let mut parts = s.trim().split('{');
+            let name = parts.next()?.trim();
+            let styling = parts.next()?.trim();
 
-        let style = match (opening_brace_pos, closing_brace_pos) {
-            (Some(open), Some(close)) => {
-                let styling = css
-                    .drain(open..=close)
-                    .collect::<String>()
-                    .trim()
-                    .replace(['{', '}'], "")
-                    .trim()
-                    .to_string();
-                let name = css.drain(..open).collect::<String>().trim().to_string();
-
-                let mut styling = styling
-                    .split(';')
-                    .map(|s| s.trim().to_string())
-                    .collect::<Vec<String>>();
-
-                styling.remove(styling.len() - 1);
-
-                Style::new(name, styling)?
+            if name.is_empty() || styling.is_empty() {
+                return None;
             }
-            _ => return Err("Invalid CSS".into()),
-        };
 
-        styles.push(style);
+            let styling = styling
+                .par_split(';')
+                .filter_map(|s| {
+                    if s.is_empty() {
+                        return None;
+                    }
+                    Some(s.trim().to_string())
+                })
+                .collect::<Vec<String>>();
+
+            Style::new(name, styling).ok()
+        })
+        .collect::<Vec<_>>();
+
+    if styles.is_empty() {
+        return Err(CssError::ContentError("Invalid CSS"));
     }
 
-    Ok(styles
+    let result: Result<HashMap<_, _>, CssError> = styles
         .par_iter()
-        .filter_map(|style| {
-            let mut width = style.dimensions.0 as i32;
-            let mut height = style.dimensions.1 as i32;
+        .map(|style| {
+            let mut width = style.dimensions.0;
+            let mut height = style.dimensions.1;
 
-            if (width <= 0 || height <= 0) && style.text.is_some() {
-                let surface = ImageSurface::create(cairo::Format::ARgb32, 0, 0).ok()?;
-                let context = Context::new(&surface).ok()?;
+            if (width.is_none() || height.is_none()) && style.text.is_some() {
+                let surface = ImageSurface::create(cairo::Format::ARgb32, 0, 0)
+                    .map_err(|_| CssError::ContentError(""))?;
+                let context = Context::new(&surface).map_err(|_| CssError::ContentError(""))?;
                 context.select_font_face(
-                    style.text.as_ref()?.family.as_str(),
-                    style.text.as_ref()?.slant,
-                    style.text.as_ref()?.weight,
+                    style
+                        .text
+                        .as_ref()
+                        .ok_or(CssError::ContentError(""))?
+                        .family
+                        .as_str(),
+                    style.text.as_ref().ok_or(CssError::ContentError(""))?.slant,
+                    style
+                        .text
+                        .as_ref()
+                        .ok_or(CssError::ContentError(""))?
+                        .weight,
                 );
-                context.set_font_size(style.text.as_ref()?.size);
+                context.set_font_size(style.text.as_ref().ok_or(CssError::ContentError(""))?.size);
                 let extents = context
-                    .text_extents(style.text.as_ref()?.text.as_str())
-                    .ok()?;
+                    .text_extents(
+                        style
+                            .text
+                            .as_ref()
+                            .ok_or(CssError::ContentError(""))?
+                            .text
+                            .as_str(),
+                    )
+                    .map_err(|_| CssError::ContentError(""))?;
 
-                width = extents.width() as i32;
-                height = extents.height() as i32;
+                width = Some(extents.width() as i32);
+                height = Some(extents.height() as i32);
             }
 
-            let surface = ImageSurface::create(cairo::Format::ARgb32, width, height).ok()?;
-            let context = Context::new(&surface).ok()?;
+            let width = width.ok_or(CssError::SizeError(""))?;
+            let height = height.ok_or(CssError::SizeError(""))?;
+
+            let surface = ImageSurface::create(cairo::Format::ARgb32, width, height)
+                .map_err(|_| CssError::ContentError(""))?;
+            let context = Context::new(&surface).map_err(|_| CssError::ContentError(""))?;
 
             context.set_source_rgba(
                 style.background[0],
@@ -86,20 +105,26 @@ pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'stat
                 style.background[2],
                 style.background[3],
             );
-            context.paint().ok()?;
+            context.paint().map_err(|_| CssError::ContentError(""))?;
 
             if let Some(text) = &style.text {
                 context.select_font_face(text.family.as_str(), text.slant, text.weight);
                 context.set_font_size(text.size);
                 context.set_source_rgb(text.color[0], text.color[1], text.color[2]);
-                context.move_to(0.0, style.dimensions.1);
+                context.move_to(0.0, height as f64);
                 _ = context.show_text(text.text.as_str());
             }
 
             let mut img = Vec::new();
-            surface.write_to_png(&mut img).ok()?;
+            surface
+                .write_to_png(&mut img)
+                .map_err(|_| CssError::ContentError(""))?;
 
-            Some((style.name.clone(), img))
+            Ok((style.name.clone(), img))
         })
-        .collect::<HashMap<String, Vec<u8>>>())
+        .collect();
+
+    let result = result.map_err(|_| CssError::ContentError(""))?;
+
+    Ok(result)
 }
