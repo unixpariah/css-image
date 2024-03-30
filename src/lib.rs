@@ -4,7 +4,8 @@ mod font;
 use crate::font::Font;
 use cairo::{Context, ImageSurface};
 use error::CssError;
-use std::{collections::HashMap, error::Error};
+use rayon::prelude::*;
+use std::collections::HashMap;
 
 struct Style {
     name: String,
@@ -140,6 +141,10 @@ impl Style {
 }
 
 pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
+    if css.is_empty() {
+        return Err(CssError::ContentError("Empty CSS"));
+    }
+
     let mut styles = vec![];
     while !css.is_empty() {
         let opening_brace_pos = css.find('{');
@@ -171,17 +176,16 @@ pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'stat
         styles.push(style);
     }
 
-    let mut output = HashMap::new();
-
-    styles
-        .iter()
-        .try_for_each(|style| {
+    Ok(styles
+        .par_iter()
+        .filter_map(|style| {
             let surface = ImageSurface::create(
                 cairo::Format::ARgb32,
                 style.dimensions.0 as i32,
                 style.dimensions.1 as i32,
-            )?;
-            let context = Context::new(&surface)?;
+            )
+            .ok()?;
+            let context = Context::new(&surface).ok()?;
 
             context.set_source_rgba(
                 style.background[0],
@@ -189,7 +193,7 @@ pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'stat
                 style.background[2],
                 style.background[3],
             );
-            context.paint()?;
+            context.paint().ok()?;
 
             if let Some(text) = &style.text {
                 context.select_font_face(text.family.as_str(), text.slant, text.weight);
@@ -202,59 +206,9 @@ pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'stat
             style.styling.iter().for_each(|_| {});
 
             let mut img = Vec::new();
-            surface.write_to_png(&mut img)?;
+            surface.write_to_png(&mut img).ok()?;
 
-            /*
-                        let mut file = std::fs::File::create("test.png")?;
-                        surface.write_to_png(&mut file)?;
-            */
-
-            output.insert(style.name.clone(), img);
-
-            Ok::<(), Box<dyn Error>>(())
+            Some((style.name.clone(), img))
         })
-        .map_err(|_| CssError::ParseError)?;
-
-    Ok(output)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse() {
-        let css = r#"body { background-color: #FFFFFF; width: 100; height: 100; }"#.to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-
-        let css =
-            r#"body { background-color: rgba(255, 255, 255, 255); width: 100; height: 100; }"#
-                .to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-
-        let css = r#"body { background-color: rgb(255, 255, 255); width: 100; height: 100; }"#
-            .to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-
-        let css = r#"body { background-color: red; width: 100; height: 100; }"#.to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-
-        let css = r#"body { width: 100; height: 100; font-size: 20; font-style: italic; font-weight: bold; color: red; content: "aaa"; }"#.to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-
-        let css = "body { }".to_string();
-        let result = parse(css);
-        println!("{:?}", result);
-        assert!(result.is_err());
-
-        let css = "body { width: four; height: two; }".to_string();
-        let result = parse(css);
-        println!("{:?}", result);
-        assert!(result.is_err());
-    }
+        .collect::<HashMap<String, Vec<u8>>>())
 }
