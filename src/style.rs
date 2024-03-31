@@ -77,7 +77,7 @@ impl Style {
                     }
                 }
                 s if s.contains("content:") => {
-                    let parts: Vec<&str> = s.split(':').collect();
+                    let parts: Vec<&str> = s.split('"').collect();
                     text = Some(parts.get(1)?.trim().replace(['"', ';'], ""));
                 }
                 s if s.contains("font-family:") => {

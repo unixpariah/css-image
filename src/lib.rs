@@ -52,52 +52,46 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
         return Err(CssError::ContentError("Invalid CSS"));
     }
 
-    let result: Result<HashMap<_, _>, CssError> = styles
+    styles
         .par_iter()
         .map(|style| {
             let mut width = style.dimensions.0;
             let mut height = style.dimensions.1;
+            let mut position = 0;
 
             if (width.is_none() || height.is_none()) && style.text.is_some() {
                 let surface = ImageSurface::create(cairo::Format::ARgb32, 0, 0)
-                    .map_err(|_| CssError::ContentError(""))?;
-                let context = Context::new(&surface).map_err(|_| CssError::ContentError(""))?;
-                context.select_font_face(
-                    style
-                        .text
-                        .as_ref()
-                        .ok_or(CssError::ContentError(""))?
-                        .family
-                        .as_str(),
-                    style.text.as_ref().ok_or(CssError::ContentError(""))?.slant,
-                    style
-                        .text
-                        .as_ref()
-                        .ok_or(CssError::ContentError(""))?
-                        .weight,
-                );
-                context.set_font_size(style.text.as_ref().ok_or(CssError::ContentError(""))?.size);
+                    .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
+                let context = Context::new(&surface)
+                    .map_err(|_| CssError::ContentError("Failed to create cairo context"))?;
+                let text = style.text.as_ref().ok_or(CssError::ContentError(""))?;
+
+                context.select_font_face(text.family.as_str(), text.slant, text.weight);
+                context.set_font_size(text.size);
                 let extents = context
-                    .text_extents(
-                        style
-                            .text
-                            .as_ref()
-                            .ok_or(CssError::ContentError(""))?
-                            .text
-                            .as_str(),
-                    )
+                    .text_extents(text.text.as_str())
                     .map_err(|_| CssError::ContentError(""))?;
 
-                width = Some(extents.width() as i32);
-                height = Some(extents.height() as i32);
+                if width.is_none() {
+                    width = Some(extents.width() as i32);
+                }
+                if height.is_none() {
+                    height = Some(extents.height() as i32);
+                }
+                position = extents.y_bearing().abs() as i32;
             }
 
-            let width = width.ok_or(CssError::SizeError(""))?;
-            let height = height.ok_or(CssError::SizeError(""))?;
+            let width = width.ok_or(CssError::SizeError(
+                "Width not found while content not provided",
+            ))?;
+            let height = height.ok_or(CssError::SizeError(
+                "Height not found while content not provided",
+            ))?;
 
             let surface = ImageSurface::create(cairo::Format::ARgb32, width, height)
-                .map_err(|_| CssError::ContentError(""))?;
-            let context = Context::new(&surface).map_err(|_| CssError::ContentError(""))?;
+                .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
+            let context = Context::new(&surface)
+                .map_err(|_| CssError::ContentError("Failed to create cairo context"))?;
 
             context.set_source_rgba(
                 style.background[0],
@@ -105,26 +99,24 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 style.background[2],
                 style.background[3],
             );
-            context.paint().map_err(|_| CssError::ContentError(""))?;
+            context
+                .paint()
+                .map_err(|_| CssError::ContentError("Failed to paint the surface"))?;
 
             if let Some(text) = &style.text {
                 context.select_font_face(text.family.as_str(), text.slant, text.weight);
                 context.set_font_size(text.size);
                 context.set_source_rgb(text.color[0], text.color[1], text.color[2]);
-                context.move_to(0.0, height as f64);
+                context.move_to(0.0, position as f64);
                 _ = context.show_text(text.text.as_str());
             }
 
             let mut img = Vec::new();
             surface
                 .write_to_png(&mut img)
-                .map_err(|_| CssError::ContentError(""))?;
+                .map_err(|_| CssError::ContentError("Failed to write cairo surface as PNG"))?;
 
             Ok((style.name.clone(), img))
         })
-        .collect();
-
-    let result = result.map_err(|_| CssError::ContentError(""))?;
-
-    Ok(result)
+        .collect::<Result<HashMap<_, _>, CssError>>()
 }
