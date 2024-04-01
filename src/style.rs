@@ -22,9 +22,11 @@ impl Style {
         let mut color = None;
         let mut weight = None;
         let mut slant = None;
+        let mut text_align = None;
 
         styling.iter().try_for_each(|style| {
             match (style.0, style.1.as_str()) {
+                ("text-align", value) => text_align = Some(value),
                 ("width", value) => {
                     width = match value {
                         value if value.ends_with("px") => {
@@ -167,7 +169,7 @@ impl Style {
         });
 
         let text = text
-            .map(|text| Font::new(family, size, color, weight, slant, text))
+            .map(|text| Font::new(family, size, color, weight, slant, text_align, text))
             .transpose()?;
 
         Ok(Self {
@@ -227,6 +229,7 @@ mod tests {
                 weight: cairo::FontWeight::Bold,
                 text: "Hello".to_string(),
                 slant: cairo::FontSlant::Italic,
+                text_align: "left".to_string(),
             })
         );
     }

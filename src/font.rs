@@ -8,6 +8,7 @@ pub(crate) struct Font {
     pub(crate) weight: cairo::FontWeight,
     pub(crate) text: String,
     pub(crate) slant: cairo::FontSlant,
+    pub(crate) text_align: String,
 }
 
 impl Font {
@@ -17,6 +18,7 @@ impl Font {
         color: Option<&str>,
         weight: Option<&str>,
         slant: Option<&str>,
+        text_align: Option<&str>,
         text: &str,
     ) -> Result<Self, CssError<'static>> {
         let family = family.unwrap_or("Arial").to_string();
@@ -75,6 +77,7 @@ impl Font {
             weight,
             text: text.to_string(),
             slant,
+            text_align: text_align.unwrap_or("left").to_string(),
         })
     }
 }
@@ -85,12 +88,14 @@ mod tests {
 
     #[test]
     fn test_font() {
-        let font = Font::new(None, None, None, None, None, "Test").unwrap();
+        let font = Font::new(None, None, None, None, None, None, "Test").unwrap();
         assert_eq!(font.family, "Arial");
         assert_eq!(font.size, 16.0);
         assert_eq!(font.color, [0.0, 0.0, 0.0]);
         assert_eq!(font.weight, cairo::FontWeight::Normal);
         assert_eq!(font.text, "Test");
+        assert_eq!(font.slant, cairo::FontSlant::Normal);
+        assert_eq!(font.text_align, "left");
 
         let font = Font::new(
             Some("Arial"),
@@ -98,6 +103,7 @@ mod tests {
             Some("black"),
             Some("bold"),
             Some("italic"),
+            None,
             "Test",
         )
         .unwrap();
@@ -106,6 +112,8 @@ mod tests {
         assert_eq!(font.color, [0.0, 0.0, 0.0]);
         assert_eq!(font.weight, cairo::FontWeight::Bold);
         assert_eq!(font.text, "Test");
+        assert_eq!(font.slant, cairo::FontSlant::Italic);
+        assert_eq!(font.text_align, "left");
 
         let font = Font::new(
             Some("Arial"),
@@ -113,6 +121,7 @@ mod tests {
             Some("#000000"),
             Some("normal"),
             Some("normal"),
+            Some("center"),
             "Test",
         )
         .unwrap();
@@ -121,6 +130,8 @@ mod tests {
         assert_eq!(font.color, [0.0, 0.0, 0.0]);
         assert_eq!(font.weight, cairo::FontWeight::Normal);
         assert_eq!(font.text, "Test");
+        assert_eq!(font.slant, cairo::FontSlant::Normal);
+        assert_eq!(font.text_align, "center");
 
         let font = Font::new(
             Some("Arial"),
@@ -128,6 +139,7 @@ mod tests {
             Some("rgb(0,0,0)"),
             Some("bold"),
             Some("italic"),
+            Some("right"),
             "Test",
         )
         .unwrap();
@@ -136,6 +148,8 @@ mod tests {
         assert_eq!(font.color, [0.0, 0.0, 0.0]);
         assert_eq!(font.weight, cairo::FontWeight::Bold);
         assert_eq!(font.text, "Test");
+        assert_eq!(font.slant, cairo::FontSlant::Italic);
+        assert_eq!(font.text_align, "right");
 
         let font = Font::new(
             Some("Arial"),
@@ -143,6 +157,7 @@ mod tests {
             Some("rgb(0,0,0)"),
             Some("bold"),
             Some(""),
+            None,
             "Test",
         );
         assert!(font.is_err());
@@ -153,6 +168,7 @@ mod tests {
             Some(""),
             Some("bold"),
             Some("italic"),
+            None,
             "Test",
         );
         assert!(font.is_err());
@@ -163,6 +179,7 @@ mod tests {
             Some("rgb(0,0,0)"),
             Some(""),
             Some("italic"),
+            None,
             "Test",
         );
         assert!(font.is_err());

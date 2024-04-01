@@ -10,7 +10,7 @@ Rust crate for rendering images from css
 - [x] background-color, color 
 - [x] font-size (Only px), font-family, font-weight, font-style
 - [x] margin (Only px)
-- [ ] text-align
+- [x] text-align
 - [ ] border, border-radius, border-color, border-width, border-style 
 - [ ] padding
 - [ ] * (all)
@@ -35,6 +35,6 @@ fn main() {
     "#;
 
     let parsed = parse(css).unwrap();
-    println!("{:?}", parsed); // Output: HashMap<String, Vec<u8>>
+    println!("{:?}", parsed); // Returns a hashmap of css selector -> Image
 }
 ```

@@ -57,7 +57,10 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
             let mut height = style.dimensions.1;
             let mut position = 0;
 
-            if (width.is_none() || height.is_none()) && style.text.is_some() {
+            let mut text_width = 0;
+            let mut text_height = 0;
+
+            if style.text.is_some() {
                 let surface = ImageSurface::create(cairo::Format::ARgb32, 0, 0)
                     .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
                 let context = Context::new(&surface)
@@ -76,6 +79,8 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 if height.is_none() {
                     height = Some(extents.height() as i32);
                 }
+                text_width = extents.width() as i32;
+                text_height = extents.height() as i32;
                 position = extents.y_bearing().abs() as i32;
             }
 
@@ -117,7 +122,18 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 context.select_font_face(text.family.as_str(), text.slant, text.weight);
                 context.set_font_size(text.size);
                 context.set_source_rgb(text.color[0], text.color[1], text.color[2]);
-                context.move_to(0.0, position as f64);
+                match text.text_align.as_str() {
+                    "center" => {
+                        context.move_to((width / 2 - text_width / 2) as f64, position as f64);
+                    }
+                    "right" => {
+                        context.move_to(width as f64 - text_width as f64, position as f64);
+                    }
+                    "left" => {
+                        context.move_to(0.0, position as f64);
+                    }
+                    _ => return Err(CssError::ContentError("Invalid text-align")),
+                }
                 _ = context.show_text(text.text.as_str());
             }
 
