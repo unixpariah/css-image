@@ -10,7 +10,7 @@ pub(crate) struct Style {
 }
 
 impl Style {
-    pub(crate) fn new(name: &str, styling: Vec<String>) -> Result<Self, CssError<'static>> {
+    pub(crate) fn new(name: &str, styling: Vec<(&str, String)>) -> Result<Self, CssError<'static>> {
         let mut width = None;
         let mut height = None;
         let mut background = [0.0, 0.0, 0.0, 1.0];
@@ -23,20 +23,20 @@ impl Style {
 
         styling.iter().try_for_each(|style| {
             match style {
-                s if s.contains("width:") => {
-                    width = match s.split(':').collect::<Vec<&str>>()[1] {
+                s if s.0 == "width" => {
+                    width = match &s.1 {
                         s if s.ends_with("px") => s.replace("px", "").trim().parse::<i32>().ok(),
                         _ => None,
                     }
                 }
-                s if s.contains("height:") => {
-                    height = match s.split(':').collect::<Vec<&str>>()[1] {
+                s if s.0 == "height" => {
+                    height = match &s.1 {
                         s if s.ends_with("px") => s.replace("px", "").trim().parse::<i32>().ok(),
                         _ => None,
                     }
                 }
-                s if s.contains("background-color:") => {
-                    background = match s.split(':').collect::<Vec<&str>>()[1].trim() {
+                s if s.0 == "background-color" => {
+                    background = match s.1.as_str() {
                         "black" => [0.0, 0.0, 0.0, 1.0],
                         "white" => [1.0, 1.0, 1.0, 1.0],
                         "red" => [1.0, 0.0, 0.0, 1.0],
@@ -76,36 +76,28 @@ impl Style {
                         _ => background,
                     }
                 }
-                s if s.contains("content:") => {
-                    let parts: Vec<&str> = s.split('"').collect();
-                    text = Some(parts.get(1)?.trim().replace(['"', ';'], ""));
-                }
-                s if s.contains("font-family:") => {
-                    family = Some(s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
-                }
-                s if s.contains("font-size:") => {
-                    size = s.split(':').collect::<Vec<&str>>()[1]
-                        .trim()
-                        .parse::<f64>()
-                        .ok();
-                }
-                s if s.contains("color:") => {
-                    let a = Some(s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
-                    color = a;
-                }
-                s if s.contains("font-weight:") => {
-                    weight = Some(s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
-                }
-                s if s.contains("font-style:") => {
-                    slant = Some(s.split(':').collect::<Vec<&str>>()[1].trim().to_string());
-                }
+                s if s.0 == "content" => text = Some(&s.1),
+                s if s.0 == "font-family" => family = Some(&s.1),
+                s if s.0 == "font-size" => size = s.1.parse::<f64>().ok(),
+                s if s.0 == "color" => color = Some(&s.1),
+                s if s.0 == "font-weight" => weight = Some(&s.1),
+                s if s.0 == "font-style" => slant = Some(&s.1),
                 _ => {}
             }
             Some(())
         });
 
         let text = text
-            .map(|text| Font::new(family, size, color, weight, slant, text))
+            .map(|text| {
+                Font::new(
+                    family.map(|a| a.as_str()),
+                    size,
+                    color.map(|a| a.as_str()),
+                    weight.map(|a| a.as_str()),
+                    slant.map(|a| a.as_str()),
+                    text.as_str(),
+                )
+            })
             .transpose()?;
 
         Ok(Self {
@@ -126,9 +118,9 @@ mod tests {
         let style = Style::new(
             "body",
             vec![
-                "width: 100px".to_string(),
-                "height: 100px".to_string(),
-                "background-color: #FFFFFF".to_string(),
+                ("width", "100px".to_string()),
+                ("height", "100px".to_string()),
+                ("background-color", "#FFFFFF".to_string()),
             ],
         )
         .unwrap();
@@ -140,15 +132,15 @@ mod tests {
         let style = Style::new(
             "body",
             vec![
-                "width: 100px".to_string(),
-                "height: 100px".to_string(),
-                "background-color: #FFFFFF".to_string(),
-                "content: \"Hello\"".to_string(),
-                "font-family: Arial".to_string(),
-                "font-size: 16".to_string(),
-                "color: black".to_string(),
-                "font-weight: bold".to_string(),
-                "font-style: italic".to_string(),
+                ("width", "100px".to_string()),
+                ("height", "100px".to_string()),
+                ("background-color", "#FFFFFF".to_string()),
+                ("content", "Hello".to_string()),
+                ("font-family", "Arial".to_string()),
+                ("font-size", "16".to_string()),
+                ("color", "black".to_string()),
+                ("font-weight", "bold".to_string()),
+                ("font-style", "italic".to_string()),
             ],
         )
         .unwrap();

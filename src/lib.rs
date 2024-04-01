@@ -40,9 +40,11 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                     if s.is_empty() {
                         return None;
                     }
-                    Some(s.trim().to_string())
+
+                    s.split_once(':')
+                        .map(|(k, v)| (k.trim(), v.trim().replace(['"', '\''], "").to_string()))
                 })
-                .collect::<Vec<String>>();
+                .collect::<Vec<(&str, String)>>();
 
             Style::new(name, styling).ok()
         })

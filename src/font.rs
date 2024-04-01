@@ -12,16 +12,16 @@ pub(crate) struct Font {
 
 impl Font {
     pub(crate) fn new(
-        family: Option<String>,
+        family: Option<&str>,
         size: Option<f64>,
-        color: Option<String>,
-        weight: Option<String>,
-        slant: Option<String>,
-        text: String,
+        color: Option<&str>,
+        weight: Option<&str>,
+        slant: Option<&str>,
+        text: &str,
     ) -> Result<Self, CssError<'static>> {
-        let family = family.unwrap_or("Arial".to_string());
+        let family = family.unwrap_or("Arial").to_string();
         let size = size.unwrap_or(16.0);
-        let color = match color.as_deref() {
+        let color = match color {
             Some("black") => [0.0, 0.0, 0.0],
             Some("white") => [1.0, 1.0, 1.0],
             Some("red") => [1.0, 0.0, 0.0],
@@ -54,17 +54,17 @@ impl Font {
             Some(&_) => return Err(CssError::FontError("Invalid font color")),
             None => [0.0, 0.0, 0.0],
         };
-        let weight = match weight.as_deref() {
+        let weight = match weight {
             Some("bold") => cairo::FontWeight::Bold,
             Some("normal") => cairo::FontWeight::Normal,
             Some(&_) => return Err(CssError::FontError("Invalid font weight")),
             None => cairo::FontWeight::Normal,
         };
 
-        let slant = match slant.as_deref() {
+        let slant = match slant {
             Some("italic") => cairo::FontSlant::Italic,
             Some("normal") => cairo::FontSlant::Normal,
-            Some(&_) => return Err(CssError::FontError("Invalid font slant")),
+            Some(&_) => return Err(CssError::FontError("Invalid font style")),
             None => cairo::FontSlant::Normal,
         };
 
@@ -73,7 +73,7 @@ impl Font {
             size,
             color,
             weight,
-            text,
+            text: text.to_string(),
             slant,
         })
     }
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_font() {
-        let font = Font::new(None, None, None, None, None, "Test".to_string()).unwrap();
+        let font = Font::new(None, None, None, None, None, "Test").unwrap();
         assert_eq!(font.family, "Arial");
         assert_eq!(font.size, 16.0);
         assert_eq!(font.color, [0.0, 0.0, 0.0]);
@@ -93,12 +93,12 @@ mod tests {
         assert_eq!(font.text, "Test");
 
         let font = Font::new(
-            Some("Arial".to_string()),
+            Some("Arial"),
             Some(16.0),
-            Some("black".to_string()),
-            Some("bold".to_string()),
-            Some("italic".to_string()),
-            "Test".to_string(),
+            Some("black"),
+            Some("bold"),
+            Some("italic"),
+            "Test",
         )
         .unwrap();
         assert_eq!(font.family, "Arial");
@@ -108,12 +108,12 @@ mod tests {
         assert_eq!(font.text, "Test");
 
         let font = Font::new(
-            Some("Arial".to_string()),
+            Some("Arial"),
             Some(16.0),
-            Some("#000000".to_string()),
-            Some("normal".to_string()),
-            Some("normal".to_string()),
-            "Test".to_string(),
+            Some("#000000"),
+            Some("normal"),
+            Some("normal"),
+            "Test",
         )
         .unwrap();
         assert_eq!(font.family, "Arial");
@@ -123,12 +123,12 @@ mod tests {
         assert_eq!(font.text, "Test");
 
         let font = Font::new(
-            Some("Arial".to_string()),
+            Some("Arial"),
             Some(16.0),
-            Some("rgb(0,0,0)".to_string()),
-            Some("bold".to_string()),
-            Some("italic".to_string()),
-            "Test".to_string(),
+            Some("rgb(0,0,0)"),
+            Some("bold"),
+            Some("italic"),
+            "Test",
         )
         .unwrap();
         assert_eq!(font.family, "Arial");
@@ -138,32 +138,32 @@ mod tests {
         assert_eq!(font.text, "Test");
 
         let font = Font::new(
-            Some("Arial".to_string()),
+            Some("Arial"),
             Some(16.0),
-            Some("rgb(0,0,0)".to_string()),
-            Some("bold".to_string()),
-            Some("".to_string()),
-            "Test".to_string(),
+            Some("rgb(0,0,0)"),
+            Some("bold"),
+            Some(""),
+            "Test",
         );
         assert!(font.is_err());
 
         let font = Font::new(
-            Some("Arial".to_string()),
+            Some("Arial"),
             Some(16.0),
-            Some("".to_string()),
-            Some("bold".to_string()),
-            Some("italic".to_string()),
-            "Test".to_string(),
+            Some(""),
+            Some("bold"),
+            Some("italic"),
+            "Test",
         );
         assert!(font.is_err());
 
         let font = Font::new(
-            Some("Arial".to_string()),
+            Some("Arial"),
             Some(16.0),
-            Some("rgb(0,0,0)".to_string()),
-            Some("".to_string()),
-            Some("italic".to_string()),
-            "Test".to_string(),
+            Some("rgb(0,0,0)"),
+            Some(""),
+            Some("italic"),
+            "Test",
         );
         assert!(font.is_err());
     }
