@@ -27,11 +27,12 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
         .par_split('}')
         .filter_map(|s| {
             let mut parts = s.trim().split('{');
+
             let name = parts.next()?.trim();
             let styling = parts.next()?.trim();
 
             if name.is_empty() || styling.is_empty() {
-                return None;
+                return Some(Err(CssError::ContentError("Empty style")));
             }
 
             let styling = styling
@@ -45,14 +46,9 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                         .map(|(k, v)| (k.trim(), v.trim().replace(['"', '\''], "").to_string()))
                 })
                 .collect::<Vec<(&str, String)>>();
-
-            Style::new(name, styling).ok()
+            Some(Style::new(name, styling))
         })
-        .collect::<Vec<_>>();
-
-    if styles.is_empty() {
-        return Err(CssError::ContentError("Invalid CSS"));
-    }
+        .collect::<Result<Vec<_>, CssError>>()?;
 
     styles
         .par_iter()
@@ -90,8 +86,14 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 "Height not found while content not provided",
             ))?;
 
-            let surface = ImageSurface::create(cairo::Format::ARgb32, width, height)
-                .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
+            let margin = style.margin;
+
+            let surface = ImageSurface::create(
+                cairo::Format::ARgb32,
+                width + margin[1] + margin[3],
+                height + margin[0] + margin[2],
+            )
+            .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
             let context = Context::new(&surface)
                 .map_err(|_| CssError::ContentError("Failed to create cairo context"))?;
 
@@ -100,6 +102,12 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 style.background[1],
                 style.background[2],
                 style.background[3],
+            );
+            context.rectangle(
+                margin[3] as f64,
+                margin[0] as f64,
+                width as f64,
+                height as f64,
             );
             context
                 .paint()

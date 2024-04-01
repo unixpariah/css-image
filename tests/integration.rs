@@ -47,6 +47,10 @@ mod tests {
             font-weight: bold; 
             color: red; 
             content: "aaa"; 
+            margin-top: 10px;
+            margin-right: 20px;
+            margin-bottom: 30px;
+            margin-left: 40px;
         }
 
         body2 { 
@@ -58,6 +62,7 @@ mod tests {
             color: red; 
             content: "aaa"; 
             background-color: #FF0000;
+            margin: 10px 20px 30px 40px;
         }
         "#
         .to_string();
@@ -88,7 +93,7 @@ mod tests {
         let result = parse(css);
         assert!(result.is_err());
 
-        let css = r#"body { content: "aaa" }"#.to_string();
+        let css = r#"aha { content: "aaa"; }"#.to_string();
         let result = parse(css);
         assert!(result.is_ok());
     }
