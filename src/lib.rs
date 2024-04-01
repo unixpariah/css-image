@@ -58,7 +58,6 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
             let mut position = 0;
 
             let mut text_width = 0;
-            let mut text_height = 0;
 
             if style.text.is_some() {
                 let surface = ImageSurface::create(cairo::Format::ARgb32, 0, 0)
@@ -80,7 +79,6 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                     height = Some(extents.height() as i32);
                 }
                 text_width = extents.width() as i32;
-                text_height = extents.height() as i32;
                 position = extents.y_bearing().abs() as i32;
             }
 
@@ -92,11 +90,12 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
             ))?;
 
             let margin = style.margin;
+            let padding = style.padding;
 
             let surface = ImageSurface::create(
                 cairo::Format::ARgb32,
-                width + margin[1] + margin[3],
-                height + margin[0] + margin[2],
+                width + margin[1] + margin[3] + padding[1] + padding[3],
+                height + margin[0] + margin[2] + padding[0] + padding[2],
             )
             .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
             let context = Context::new(&surface)
@@ -111,8 +110,8 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
             context.rectangle(
                 margin[3] as f64,
                 margin[0] as f64,
-                width as f64,
-                height as f64,
+                width as f64 + padding[1] as f64 + padding[3] as f64,
+                height as f64 + padding[0] as f64 + padding[2] as f64,
             );
             context
                 .paint()
@@ -124,13 +123,17 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 context.set_source_rgb(text.color[0], text.color[1], text.color[2]);
                 match text.text_align.as_str() {
                     "center" => {
-                        context.move_to((width / 2 - text_width / 2) as f64, position as f64);
+                        context.move_to(
+                            (width / 2 - text_width / 2) as f64 + padding[3] as f64,
+                            position as f64 + padding[0] as f64,
+                        );
                     }
                     "right" => {
                         context.move_to(width as f64 - text_width as f64, position as f64);
                     }
                     "left" => {
-                        context.move_to(0.0, position as f64);
+                        context
+                            .move_to(0.0 + padding[3] as f64, position as f64 + padding[0] as f64);
                     }
                     _ => return Err(CssError::ContentError("Invalid text-align")),
                 }

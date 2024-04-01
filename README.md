@@ -6,14 +6,15 @@ Rust crate for rendering images from css
 
 ## Features
 
-- [x] width/height (Only px)
+Only px units are supported for now.
+
+- [x] width/height 
 - [x] background-color, color 
-- [x] font-size (Only px), font-family, font-weight, font-style
-- [x] margin (Only px)
-- [x] text-align
+- [x] font-size, font-family, font-weight, font-style, content, text-align
+- [x] margin 
+- [x] padding
 - [ ] border, border-radius, border-color, border-width, border-style 
-- [ ] padding
-- [ ] * (all)
+- [ ] * selector 
 - [ ] multiple selectors
 
 ## Dependencies
@@ -23,7 +24,7 @@ Rust crate for rendering images from css
 ## Usage
 
 ```rust
-use css::parse;
+use css_image::parse;
 
 fn main() {
     let css = r#"
