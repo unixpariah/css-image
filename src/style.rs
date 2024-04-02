@@ -9,11 +9,12 @@ pub(crate) struct Style {
     pub(crate) background: [f64; 4],
     pub(crate) margin: [i32; 4],
     pub(crate) padding: [i32; 4],
+    pub(crate) border_radius: Option<f64>,
 }
 
 impl Style {
-    pub(crate) fn new(name: &str, styling: Vec<(&str, String)>) -> Result<Self, CssError<'static>> {
-        let mut background = [0.0, 0.0, 0.0, 1.0];
+    pub(crate) fn new(name: &str, styling: Vec<(&str, &str)>) -> Result<Self, CssError<'static>> {
+        let mut background = [0.0, 0.0, 0.0, 0.0];
         let mut margin = [0, 0, 0, 0];
         let mut padding = [0, 0, 0, 0];
         let mut width = None;
@@ -25,11 +26,20 @@ impl Style {
         let mut weight = None;
         let mut slant = None;
         let mut text_align = None;
+        let mut border_radius = None;
 
         styling.iter().try_for_each(|style| {
-            match (style.0, style.1.as_str()) {
+            match (style.0, style.1) {
+                ("border-radius", value) => {
+                    border_radius = match value {
+                        value if value.ends_with("px") => {
+                            value.replace("px", "").trim().parse::<f64>().ok()
+                        }
+                        _ => Some(0.),
+                    }
+                }
                 ("text-align", value) => text_align = Some(value),
-                ("paddint-top", value) => {
+                ("padding-top", value) => {
                     padding[0] = match value {
                         value if value.ends_with("px") => {
                             value.replace("px", "").trim().parse::<i32>().ok()?
@@ -246,6 +256,7 @@ impl Style {
             background,
             margin,
             padding,
+            border_radius,
         })
     }
 }
@@ -259,9 +270,9 @@ mod tests {
         let style = Style::new(
             "body",
             vec![
-                ("width", "100px".to_string()),
-                ("height", "100px".to_string()),
-                ("background-color", "#FFFFFF".to_string()),
+                ("width", "100px"),
+                ("height", "100px"),
+                ("background-color", "#FFFFFF"),
             ],
         )
         .unwrap();
@@ -273,15 +284,15 @@ mod tests {
         let style = Style::new(
             "body",
             vec![
-                ("width", "100px".to_string()),
-                ("height", "100px".to_string()),
-                ("background-color", "#FFFFFF".to_string()),
-                ("content", "Hello".to_string()),
-                ("font-family", "Arial".to_string()),
-                ("font-size", "16px".to_string()),
-                ("color", "black".to_string()),
-                ("font-weight", "bold".to_string()),
-                ("font-style", "italic".to_string()),
+                ("width", "100px"),
+                ("height", "100px"),
+                ("background-color", "#FFFFFF"),
+                ("content", "Hello"),
+                ("font-family", "Arial"),
+                ("font-size", "16px"),
+                ("color", "black"),
+                ("font-weight", "bold"),
+                ("font-style", "italic"),
             ],
         )
         .unwrap();

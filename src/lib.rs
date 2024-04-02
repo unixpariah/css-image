@@ -43,10 +43,13 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                     }
 
                     s.split_once(':')
-                        .map(|(k, v)| (k.trim(), v.trim().replace(['"', '\''], "").to_string()))
+                        .map(|(k, v)| (k.trim(), v.replace(['"', '\''], "")))
                 })
                 .collect::<Vec<(&str, String)>>();
-            Some(Style::new(name, styling))
+            Some(Style::new(
+                name,
+                styling.iter().map(|(k, v)| (*k, v.trim())).collect(),
+            ))
         })
         .collect::<Result<Vec<_>, CssError>>()?;
 
@@ -98,6 +101,9 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 height + margin[0] + margin[2] + padding[0] + padding[2],
             )
             .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
+            let mut img =
+                Vec::with_capacity(surface.width() as usize * surface.height() as usize * 4);
+
             let context = Context::new(&surface)
                 .map_err(|_| CssError::ContentError("Failed to create cairo context"))?;
 
@@ -107,20 +113,22 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 style.background[2],
                 style.background[3],
             );
-            context.rectangle(
+            draw_rectangle(
+                &context,
                 margin[3] as f64,
                 margin[0] as f64,
                 width as f64 + padding[1] as f64 + padding[3] as f64,
                 height as f64 + padding[0] as f64 + padding[2] as f64,
+                style.border_radius.unwrap_or(0.),
             );
             context
-                .paint()
+                .fill_preserve()
                 .map_err(|_| CssError::ContentError("Failed to paint the surface"))?;
 
             if let Some(text) = &style.text {
                 context.select_font_face(text.family.as_str(), text.slant, text.weight);
                 context.set_font_size(text.size);
-                context.set_source_rgb(text.color[0], text.color[1], text.color[2]);
+                context.set_source_rgba(text.color[0], text.color[1], text.color[2], 1.0);
                 match text.text_align.as_str() {
                     "center" => {
                         context.move_to(
@@ -140,7 +148,6 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 _ = context.show_text(text.text.as_str());
             }
 
-            let mut img = Vec::new();
             surface
                 .write_to_png(&mut img)
                 .map_err(|_| CssError::ContentError("Failed to write cairo surface as PNG"))?;
@@ -148,4 +155,39 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
             Ok((style.name.clone(), img))
         })
         .collect::<Result<HashMap<_, _>, CssError>>()
+}
+
+fn draw_rectangle(context: &Context, x: f64, y: f64, width: f64, height: f64, border_radius: f64) {
+    let degrees = std::f64::consts::PI / 180.0;
+
+    context.new_sub_path();
+    context.arc(
+        x + width - border_radius,
+        y + border_radius,
+        border_radius,
+        -90.0 * degrees,
+        0.0 * degrees,
+    );
+    context.arc(
+        x + width - border_radius,
+        y + height - border_radius,
+        border_radius,
+        0.0 * degrees,
+        90.0 * degrees,
+    );
+    context.arc(
+        x + border_radius,
+        y + height - border_radius,
+        border_radius,
+        90.0 * degrees,
+        180.0 * degrees,
+    );
+    context.arc(
+        x + border_radius,
+        y + border_radius,
+        border_radius,
+        180.0 * degrees,
+        270.0 * degrees,
+    );
+    context.close_path();
 }
