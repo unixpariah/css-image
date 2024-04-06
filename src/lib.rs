@@ -158,6 +158,10 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
 }
 
 fn draw_rectangle(context: &Context, x: f64, y: f64, width: f64, height: f64, border_radius: f64) {
+    let border_radius = match border_radius > 20. {
+        true => 20. / 3.33,
+        false => border_radius / 3.33,
+    };
     let degrees = std::f64::consts::PI / 180.0;
 
     context.new_sub_path();

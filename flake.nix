@@ -1,5 +1,5 @@
 {
-  description = "Simple status bar for wayland";
+  description = "CSS image rendering library";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -19,21 +19,20 @@
         };
         rustEnv = pkgs.mkShell {
           buildInputs = with pkgs; [
-            nodejs_21
-            rustc
-            cargo
             pkg-config
             cairo
             rustfmt
             rust-analyzer
-            clippy
+            cargo
+            rustup
+            rustc
           ];
         };
       in {
         devShell = rustEnv;
         packages = {
           ssb = pkgs.stdenv.mkDerivation {
-            name = "ssb";
+            name = "css-image";
             src = ./.;
             buildInputs = with pkgs; [rustc cargo];
             buildPhase = ''
@@ -41,7 +40,7 @@
             '';
             installPhase = ''
               mkdir -p $out/bin
-              cp target/release/ssb $out/bin/
+              cp target/release/css-image $out/bin/
             '';
           };
         };
