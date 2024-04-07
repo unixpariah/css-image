@@ -140,8 +140,10 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                         context.move_to(width as f64 - text_width as f64, position as f64);
                     }
                     "left" => {
-                        context
-                            .move_to(0.0 + padding[3] as f64, position as f64 + padding[0] as f64);
+                        context.move_to(
+                            0.0 + padding[3] as f64 + margin[3] as f64,
+                            position as f64 + padding[0] as f64 + margin[0] as f64,
+                        );
                     }
                     _ => return Err(CssError::ContentError("Invalid text-align")),
                 }
