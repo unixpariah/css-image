@@ -26,6 +26,7 @@
             cargo
             rustup
             rustc
+            nodejs_21
           ];
         };
       in {

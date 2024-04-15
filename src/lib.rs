@@ -6,7 +6,9 @@ use crate::style::Style;
 use cairo::{Context, ImageSurface};
 use error::CssError;
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::RwLock};
+
+static GLOBAL: RwLock<Option<String>> = RwLock::new(None);
 
 /// Parse CSS into a HashMap of images.
 ///
@@ -18,14 +20,40 @@ use std::collections::HashMap;
 /// let css = r#"body { background-color: #FFFFFF; width: 100px; height: 100px; }"#.to_string();
 /// let result = parse(css);
 /// ```
-pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
+pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
     if css.is_empty() {
         return Err(CssError::ContentError("Empty CSS"));
+    }
+
+    if let Some(index) = css.find('*') {
+        let end_index = css[index..]
+            .find('}')
+            .map(|i| i + index)
+            .ok_or(CssError::ContentError("Invalid CSS"))?;
+
+        let mut css_section = css[index..=end_index].to_string();
+
+        if !css_section.contains("width") && !css_section.contains("content") {
+            css_section = css_section.replace('}', "; width: auto; }");
+        }
+        if !css_section.contains("height") && !css_section.contains("content") {
+            css_section = css_section.replace('}', "; height: auto; }");
+        }
+
+        css.replace_range(index..end_index, &css_section);
+
+        *GLOBAL.write().unwrap() = Some(css_section.replace(['*', '{', '}'], ""));
     }
 
     let styles = css
         .par_split('}')
         .filter_map(|s| {
+            let s = format!(
+                "{}{}",
+                s,
+                GLOBAL.read().unwrap().as_ref().unwrap_or(&"".to_string())
+            );
+
             let mut parts = s.trim().split('{');
 
             let name = parts.next()?.trim();
@@ -85,12 +113,8 @@ pub fn parse(css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
                 position = extents.y_bearing().abs() as i32;
             }
 
-            let width = width.ok_or(CssError::SizeError(
-                "Width not found while content not provided",
-            ))?;
-            let height = height.ok_or(CssError::SizeError(
-                "Height not found while content not provided",
-            ))?;
+            let width = width.unwrap_or(1);
+            let height = height.unwrap_or(1);
 
             let margin = style.margin;
             let padding = style.padding;

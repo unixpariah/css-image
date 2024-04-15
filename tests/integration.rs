@@ -39,28 +39,32 @@ mod tests {
         assert_eq!(result.unwrap().len(), 1);
 
         let css = r#"
-        body { 
-            width: auto; 
-            height: auto; 
-            font-size: 20; 
-            font-style: italic; 
-            font-weight: bold; 
-            color: red; 
-            content: "aaa"; 
+        * {
+            width: 5px;
+        }
+
+        body {
+            width: auto;
+            height: auto;
+            font-size: 20;
+            font-style: italic;
+            font-weight: bold;
+            color: red;
+            content: "aaa";
             margin-top: 10px;
             margin-right: 20px;
             margin-bottom: 30px;
             margin-left: 40px;
         }
 
-        body2 { 
-            width: auto; 
-            height: auto; 
-            font-size: 20; 
-            font-style: italic; 
-            font-weight: bold; 
-            color: red; 
-            content: "aaa"; 
+        body2 {
+            width: auto;
+            height: auto;
+            font-size: 20;
+            font-style: italic;
+            font-weight: bold;
+            color: red;
+            content: "aaa";
             background-color: #FF0000;
             margin: 10px 20px 30px 40px;
         }
@@ -68,7 +72,7 @@ mod tests {
         .to_string();
         let result = parse(css);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 2);
+        assert_eq!(result.unwrap().len(), 3);
     }
 
     #[test]
@@ -84,14 +88,13 @@ mod tests {
 
     #[test]
     fn wrong_size() {
-        // Wrong size will be fit to content
         let css = r#"body { width: 100px; height: two; }"#.to_string();
         let result = parse(css);
-        assert!(result.is_err());
+        assert!(result.is_ok());
 
         let css = r#"body { width: four; height: 100px; }"#.to_string();
         let result = parse(css);
-        assert!(result.is_err());
+        assert!(result.is_ok());
 
         let css = r#"aha { content: "aaa"; }"#.to_string();
         let result = parse(css);

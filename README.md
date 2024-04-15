@@ -8,13 +8,13 @@ Rust crate for rendering images from css
 
 Only px units are supported for now.
 
-- [x] width/height 
-- [x] background-color, color 
+- [x] width/height
+- [x] background-color, color
 - [x] font-size, font-family, font-weight, font-style, content, text-align
-- [x] margin 
+- [x] margin
 - [x] padding
-- [ ] border, border-radius, border-color, border-width, border-style 
-- [ ] * selector 
+- [x] * selector
+- [ ] border, border-radius, border-color, border-width, border-style
 - [ ] multiple selectors
 
 ## Dependencies
