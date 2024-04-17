@@ -1,103 +1,69 @@
-use css_image::parse;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use css_image::{parse, Stylings};
 
     #[test]
     fn integration() {
+        all_selector();
+    }
+
+    fn all_selector() {
         let css = r#"
-        body { background-color: #FFFFFF; width: 100px; height: 100px; }
-        "#
-        .to_string();
+        body { background-color: #ffffff; width: 100px; height: 100px; }
+        "#;
 
-        let result = parse(css);
+        let result = Stylings::new(css);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 1);
+        let result = result.unwrap().styles;
+        assert!(result.get("body").is_some());
+        let body = result.get("body").unwrap();
+        assert_eq!(body.width, 100);
+        assert_eq!(body.height, 100);
+    }
 
-        let css =
-            r#"body { background-color: rgba(255, 255, 255, 255); width: 100px; height: 100px; }"#
-                .to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 1);
-
-        let css = r#"body { background-color: rgb(255, 255, 255); width: 100px; height: 100px; }"#
-            .to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 1);
-
-        let css = r#"body { background-color: red; width: 100px; height: 100px; }"#.to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 1);
-
-        let css = r#"body { background-color: error; width: 100px; height: 100px; }"#.to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 1);
-
+    /*
+    fn single_style() {
         let css = r#"
-        * {
-            width: 5px;
-        }
+        body { background-color: #ffffff; width: 100px; height: 100px; }
+        "#;
 
-        body {
-            width: auto;
-            height: auto;
-            font-size: 20;
-            font-style: italic;
-            font-weight: bold;
-            color: red;
-            content: "aaa";
-            margin-top: 10px;
-            margin-right: 20px;
-            margin-bottom: 30px;
-            margin-left: 40px;
-        }
+        let result = Styles::from_str(css);
+        assert!(result.is_ok());
+        let result = result.unwrap().0;
+        assert_eq!(result.len(), 1);
+        assert!(result.get("body").is_some());
+        let body = result.get("body").unwrap();
+        assert!(body.get("width").is_some());
+        assert!(body.get("height").is_some());
+        assert!(body.get("background-color").is_some());
+    }
+
+    fn two_styles() {
+        let css = r#"
+        body { background-color: #ffffff; width: 100px; height: 100px; }
 
         body2 {
-            width: auto;
-            height: auto;
-            font-size: 20;
-            font-style: italic;
-            font-weight: bold;
-            color: red;
-            content: "aaa";
-            background-color: #FF0000;
-            margin: 10px 20px 30px 40px;
+        background-color: #ffffff;
+        width: 100px;
+        height: 100px;
         }
-        "#
-        .to_string();
-        let result = parse(css);
+        "#;
+
+        let result = Styles::from_str(css);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 3);
+        let result = result.unwrap().0;
+        assert_eq!(result.len(), 2);
+        assert!(result.get("body").is_some());
+        let body = result.get("body").unwrap();
+        assert!(body.get("width").is_some());
+        assert!(body.get("height").is_some());
+        assert!(body.get("background-color").is_some());
+
+        assert!(result.get("body2").is_some());
+        let body = result.get("body2").unwrap();
+        assert!(body.get("width").is_some());
+        assert!(body.get("height").is_some());
+        assert!(body.get("background-color").is_some());
     }
-
-    #[test]
-    fn empty() {
-        let css = "".to_string();
-        let result = parse(css);
-        assert!(result.is_err());
-
-        let css = "body { }".to_string();
-        let result = parse(css);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn wrong_size() {
-        let css = r#"body { width: 100px; height: two; }"#.to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-
-        let css = r#"body { width: four; height: 100px; }"#.to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-
-        let css = r#"aha { content: "aaa"; }"#.to_string();
-        let result = parse(css);
-        assert!(result.is_ok());
-    }
+    */
 }

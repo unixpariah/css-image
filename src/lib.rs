@@ -1,186 +1,31 @@
 mod error;
-mod font;
 mod style;
 
-use crate::style::Style;
-use cairo::{Context, ImageSurface};
+use cairo::Context;
 use error::CssError;
-use rayon::prelude::*;
-use std::{collections::HashMap, sync::RwLock};
+use std::collections::HashMap;
+pub use style::Stylings;
 
-static GLOBAL: RwLock<Option<String>> = RwLock::new(None);
+pub fn parse(css: &str) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
+    /*
+        styles.iter().for_each(|style| {
+            let all_selector = styles.get("*");
 
-/// Parse CSS into a HashMap of images.
-///
-/// # Examples
-///
-/// ```
-/// use css_image::parse;
-///
-/// let css = r#"body { background-color: #FFFFFF; width: 100px; height: 100px; }"#.to_string();
-/// let result = parse(css);
-/// ```
-pub fn parse(mut css: String) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
-    if css.is_empty() {
-        return Err(CssError::ContentError("Empty CSS"));
-    }
+            let selector = style.0;
+            let style = style.1;
 
-    if let Some(index) = css.find('*') {
-        let end_index = css[index..]
-            .find('}')
-            .map(|i| i + index)
-            .ok_or(CssError::ContentError("Invalid CSS"))?;
+            let height = style
+                .get("height")
+                .or_else(|| all_selector.map(|height| height.get("height")).flatten())
+                .map_or_else(|| "5px", |height| height)
+                .replace("px", "")
+                .parse::<i32>()
+                .unwrap_or(5);
 
-        let mut css_section = css[index..=end_index].to_string();
-
-        if !css_section.contains("width") && !css_section.contains("content") {
-            css_section = css_section.replace('}', "; width: auto; }");
-        }
-        if !css_section.contains("height") && !css_section.contains("content") {
-            css_section = css_section.replace('}', "; height: auto; }");
-        }
-
-        css.replace_range(index..end_index, &css_section);
-
-        *GLOBAL.write().unwrap() = Some(css_section.replace(['*', '{', '}'], ""));
-    }
-
-    let styles = css
-        .par_split('}')
-        .filter_map(|s| {
-            let s = format!(
-                "{}{}",
-                s,
-                GLOBAL.read().unwrap().as_ref().unwrap_or(&"".to_string())
-            );
-
-            let mut parts = s.trim().split('{');
-
-            let name = parts.next()?.trim();
-            let styling = parts.next()?.trim();
-
-            if name.is_empty() || styling.is_empty() {
-                return Some(Err(CssError::ContentError("Empty style")));
-            }
-
-            let styling = styling
-                .par_split(';')
-                .filter_map(|s| {
-                    if s.is_empty() {
-                        return None;
-                    }
-
-                    s.split_once(':')
-                        .map(|(k, v)| (k.trim(), v.replace(['"', '\''], "")))
-                })
-                .collect::<Vec<(&str, String)>>();
-            Some(Style::new(
-                name,
-                styling.iter().map(|(k, v)| (*k, v.trim())).collect(),
-            ))
-        })
-        .collect::<Result<Vec<_>, CssError>>()?;
-
-    styles
-        .par_iter()
-        .map(|style| {
-            let mut width = style.dimensions.0;
-            let mut height = style.dimensions.1;
-            let mut position = 0;
-
-            let mut text_width = 0;
-
-            if style.text.is_some() {
-                let surface = ImageSurface::create(cairo::Format::ARgb32, 0, 0)
-                    .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
-                let context = Context::new(&surface)
-                    .map_err(|_| CssError::ContentError("Failed to create cairo context"))?;
-                let text = style.text.as_ref().ok_or(CssError::ContentError(""))?;
-
-                context.select_font_face(text.family.as_str(), text.slant, text.weight);
-                context.set_font_size(text.size);
-                let extents = context
-                    .text_extents(text.text.as_str())
-                    .map_err(|_| CssError::ContentError(""))?;
-
-                if width.is_none() {
-                    width = Some(extents.width() as i32);
-                }
-                if height.is_none() {
-                    height = Some(extents.height() as i32);
-                }
-                text_width = extents.width() as i32;
-                position = extents.y_bearing().abs() as i32;
-            }
-
-            let width = width.unwrap_or(1);
-            let height = height.unwrap_or(1);
-
-            let margin = style.margin;
-            let padding = style.padding;
-
-            let surface = ImageSurface::create(
-                cairo::Format::ARgb32,
-                width + margin[1] + margin[3] + padding[1] + padding[3],
-                height + margin[0] + margin[2] + padding[0] + padding[2],
-            )
-            .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
-            let mut img =
-                Vec::with_capacity(surface.width() as usize * surface.height() as usize * 4);
-
-            let context = Context::new(&surface)
-                .map_err(|_| CssError::ContentError("Failed to create cairo context"))?;
-
-            context.set_source_rgba(
-                style.background[0],
-                style.background[1],
-                style.background[2],
-                style.background[3],
-            );
-            draw_rectangle(
-                &context,
-                margin[3] as f64,
-                margin[0] as f64,
-                width as f64 + padding[1] as f64 + padding[3] as f64,
-                height as f64 + padding[0] as f64 + padding[2] as f64,
-                style.border_radius.unwrap_or(0.),
-            );
-            context
-                .fill_preserve()
-                .map_err(|_| CssError::ContentError("Failed to paint the surface"))?;
-
-            if let Some(text) = &style.text {
-                context.select_font_face(text.family.as_str(), text.slant, text.weight);
-                context.set_font_size(text.size);
-                context.set_source_rgba(text.color[0], text.color[1], text.color[2], 1.0);
-                match text.text_align.as_str() {
-                    "center" => {
-                        context.move_to(
-                            (width / 2 - text_width / 2) as f64 + padding[3] as f64,
-                            position as f64 + padding[0] as f64,
-                        );
-                    }
-                    "right" => {
-                        context.move_to(width as f64 - text_width as f64, position as f64);
-                    }
-                    "left" => {
-                        context.move_to(
-                            0.0 + padding[3] as f64 + margin[3] as f64,
-                            position as f64 + padding[0] as f64 + margin[0] as f64,
-                        );
-                    }
-                    _ => return Err(CssError::ContentError("Invalid text-align")),
-                }
-                _ = context.show_text(text.text.as_str());
-            }
-
-            surface
-                .write_to_png(&mut img)
-                .map_err(|_| CssError::ContentError("Failed to write cairo surface as PNG"))?;
-
-            Ok((style.name.clone(), img))
-        })
-        .collect::<Result<HashMap<_, _>, CssError>>()
+            println!("{height} {width}");
+        });
+    */
+    Ok(HashMap::new())
 }
 
 fn draw_rectangle(context: &Context, x: f64, y: f64, width: f64, height: f64, border_radius: f64) {

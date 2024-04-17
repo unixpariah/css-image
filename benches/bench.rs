@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use criterion::{criterion_group, criterion_main, Criterion};
-use css_image::parse;
+use css_image::Styles;
 
 fn bench_resize(c: &mut Criterion) {
     let css = r#"
@@ -7,7 +9,7 @@ fn bench_resize(c: &mut Criterion) {
     "#
         .to_string();
 
-    c.bench_function("single_element", |b| b.iter(|| parse(css.clone())));
+    c.bench_function("single_element", |b| b.iter(|| Styles::from_str(&css)));
 
     let css = r#"
     one { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
@@ -15,7 +17,7 @@ fn bench_resize(c: &mut Criterion) {
     "#
         .to_string();
 
-    c.bench_function("double_element", |b| b.iter(|| parse(css.clone())));
+    c.bench_function("double_element", |b| b.iter(|| Styles::from_str(&css)));
 
     let css = r#"
     one { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
@@ -24,7 +26,7 @@ fn bench_resize(c: &mut Criterion) {
     "#
         .to_string();
 
-    c.bench_function("triple_element", |b| b.iter(|| parse(css.clone())));
+    c.bench_function("triple_element", |b| b.iter(|| Styles::from_str(&css)));
 
     let css = r#"
     one { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
@@ -40,7 +42,7 @@ fn bench_resize(c: &mut Criterion) {
     "#
         .to_string();
 
-    c.bench_function("complex_style", |b| b.iter(|| parse(css.clone())));
+    c.bench_function("complex_element", |b| b.iter(|| Styles::from_str(&css)));
 }
 
 criterion_group!(benches, bench_resize);
