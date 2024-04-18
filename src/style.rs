@@ -13,10 +13,11 @@ pub struct Stylings {
 impl Stylings {
     pub fn new(css: &str) -> Result<Self, CssError<'static>> {
         let css = Styles::from_str(css)?.0;
+        let all_selector = css.get("*");
         let styles = css
             .iter()
             .map(|(selector, properties)| {
-                let style = Style::new(properties);
+                let style = Style::new(properties, all_selector);
                 (selector.to_string(), style)
             })
             .collect();
@@ -70,79 +71,100 @@ pub(super) fn get_color(color: &str) -> [f64; 4] {
 }
 
 impl Style {
-    fn new(css: &HashMap<String, String>) -> Self {
-        let width = match css.get("width").unwrap_or(&"".to_string()).ends_with("px") {
-            true => css
-                .get("width")
-                .unwrap_or(&"".to_string())
-                .replace("px", "")
-                .parse::<i32>()
-                .ok(),
-            false => None,
-        };
-        let height = match css.get("height").unwrap_or(&"".to_string()).ends_with("px") {
-            true => css
-                .get("height")
-                .unwrap_or(&"".to_string())
-                .replace("px", "")
-                .parse::<i32>()
-                .ok(),
-            false => None,
+    fn new(css: &HashMap<String, String>, all_selector: Option<&HashMap<String, String>>) -> Self {
+        let get_property = |property: &str| {
+            css.get(property)
+                .and_then(|s| {
+                    if s.ends_with("px") {
+                        Some(s.replace("px", ""))
+                    } else {
+                        None
+                    }
+                })
+                .and_then(|s| s.parse::<i32>().ok())
+                .or_else(|| {
+                    all_selector
+                        .as_ref()?
+                        .get(property)
+                        .and_then(|s| {
+                            if s.ends_with("px") {
+                                Some(s.replace("px", ""))
+                            } else {
+                                None
+                            }
+                        })
+                        .and_then(|s| s.parse::<i32>().ok())
+                })
         };
 
-        let border_radius = match css
-            .get("border-radius")
-            .unwrap_or(&"".to_string())
-            .ends_with("px")
+        let width = get_property("width");
+        let height = get_property("height");
+        let border_radius = get_property("border-radius").unwrap_or(0) as f64;
+
+        let background_color = css
+            .get("background-color")
+            .or_else(|| all_selector.as_ref()?.get("background-color"))
+            .map(|color| get_color(color))
+            .unwrap_or([0., 0., 0., 1.]);
+
+        let get_padding_or_margin = |property: &str| match css
+            .get(property)
+            .or_else(|| all_selector.as_ref()?.get(property))
         {
-            true => css
-                .get("border-radius")
-                .unwrap_or(&"".to_string())
-                .replace("px", "")
-                .parse::<f64>()
-                .ok(),
-            false => None,
-        }
-        .unwrap_or(0.);
-
-        let background_color = match css.get("background-color") {
-            Some(color) => get_color(color),
-            None => [0., 0., 0., 1.],
-        };
-
-        let padding = match css.get("padding") {
-            Some(padding) => {
-                let padding: Vec<i32> =
-                    padding.split(' ').map(|s| s.parse().unwrap_or(0)).collect();
-                match padding.len() {
-                    1 => [padding[0]; 4],
-                    2 => [padding[0], padding[1], padding[0], padding[1]],
-                    3 => [padding[0], padding[1], padding[2], padding[1]],
-                    4 => [padding[0], padding[1], padding[2], padding[3]],
+            Some(value) => {
+                let values: Vec<i32> = value.split(' ').map(|s| s.parse().unwrap_or(0)).collect();
+                match values.len() {
+                    1 => [values[0]; 4],
+                    2 => [values[0], values[1], values[0], values[1]],
+                    3 => [values[0], values[1], values[2], values[1]],
+                    4 => [values[0], values[1], values[2], values[3]],
                     _ => [0; 4],
                 }
             }
             None => [0; 4],
         };
 
-        let margin = match css.get("margin") {
-            Some(margin) => {
-                let margin: Vec<i32> = margin.split(' ').map(|s| s.parse().unwrap_or(0)).collect();
-                match margin.len() {
-                    1 => [margin[0]; 4],
-                    2 => [margin[0], margin[1], margin[0], margin[1]],
-                    3 => [margin[0], margin[1], margin[2], margin[1]],
-                    4 => [margin[0], margin[1], margin[2], margin[3]],
-                    _ => [0; 4],
+        let mut padding = get_padding_or_margin("padding");
+        let mut margin = get_padding_or_margin("margin");
+
+        [
+            "padding-top",
+            "padding-right",
+            "padding-bottom",
+            "padding-left",
+        ]
+        .into_iter()
+        .for_each(|direction| {
+            if let Some(value) = get_property(direction) {
+                match direction {
+                    "padding-top" => padding[0] = value,
+                    "padding-right" => padding[1] = value,
+                    "padding-bottom" => padding[2] = value,
+                    "padding-left" => padding[3] = value,
+                    _ => {}
                 }
             }
-            None => [0; 4],
-        };
+        });
+
+        ["margin-top", "margin-right", "margin-bottom", "margin-left"]
+            .into_iter()
+            .for_each(|direction| {
+                if let Some(value) = get_property(direction) {
+                    match direction {
+                        "margin-top" => margin[0] = value,
+                        "margin-right" => margin[1] = value,
+                        "margin-bottom" => margin[2] = value,
+                        "margin-left" => margin[3] = value,
+                        _ => {}
+                    }
+                }
+            });
 
         let content = css
             .get("content")
             .map(|s| s.trim().replace("\"", "").to_string());
-        let font = Font::new(&css);
+
+        let font = Font::new(&css, all_selector);
 
         Self {
             padding,

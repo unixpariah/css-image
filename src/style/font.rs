@@ -10,58 +10,80 @@ pub struct Font {
     pub weight: cairo::FontWeight,
     pub text_align: String,
 }
-
 impl Font {
-    pub fn new(css: &HashMap<String, String>) -> Self {
-        let size = match css
-            .get("font-size")
-            .unwrap_or(&"".to_string())
-            .ends_with("px")
-        {
-            true => css
-                .get("font-size")
-                .unwrap_or(&"".to_string())
-                .replace("px", "")
-                .parse(),
-            false => Ok(12.0),
+    pub fn new(
+        css: &HashMap<String, String>,
+        all_selector: Option<&HashMap<String, String>>,
+    ) -> Self {
+        let get_property = |property: &str, default: f64| {
+            css.get(property)
+                .and_then(|s| {
+                    if s.ends_with("px") {
+                        Some(s.replace("px", ""))
+                    } else {
+                        None
+                    }
+                })
+                .and_then(|s| s.parse::<f64>().ok())
+                .or_else(|| {
+                    all_selector
+                        .as_ref()?
+                        .get(property)
+                        .and_then(|s| {
+                            if s.ends_with("px") {
+                                Some(s.replace("px", ""))
+                            } else {
+                                None
+                            }
+                        })
+                        .and_then(|s| s.parse::<f64>().ok())
+                })
+                .unwrap_or(default)
         };
 
-        let color = match css.get("color") {
-            Some(color) => get_color(color),
-            None => [0., 0., 0., 1.],
-        };
+        let size = get_property("font-size", 12.0);
 
-        let family = match css.get("font-family") {
-            Some(family) => family.trim().replace("\"", "").to_string(),
-            None => "Arial".to_string(),
-        };
+        let color = css
+            .get("color")
+            .or_else(|| all_selector.as_ref()?.get("color"))
+            .map(|color| get_color(color))
+            .unwrap_or([0., 0., 0., 1.]);
 
-        let style = match css.get("font-style") {
-            Some(style) => match style.as_str() {
+        let family = css
+            .get("font-family")
+            .or_else(|| all_selector.as_ref()?.get("font-family"))
+            .map(|s| s.trim().replace("\"", ""))
+            .unwrap_or_else(|| "Arial".to_string());
+
+        let style = css
+            .get("font-style")
+            .or_else(|| all_selector.as_ref()?.get("font-style"))
+            .map(|s| match s.as_str() {
                 "italic" => cairo::FontSlant::Italic,
                 "oblique" => cairo::FontSlant::Oblique,
                 _ => cairo::FontSlant::Normal,
-            },
-            None => cairo::FontSlant::Normal,
-        };
+            })
+            .unwrap_or(cairo::FontSlant::Normal);
 
-        let weight = match css.get("font-weight") {
-            Some(weight) => match weight.as_str() {
+        let weight = css
+            .get("font-weight")
+            .or_else(|| all_selector.as_ref()?.get("font-weight"))
+            .map(|s| match s.as_str() {
                 "bold" => cairo::FontWeight::Bold,
                 _ => cairo::FontWeight::Normal,
-            },
-            None => cairo::FontWeight::Normal,
-        };
+            })
+            .unwrap_or(cairo::FontWeight::Normal);
 
-        let text_align = match css.get("text-align") {
-            Some(align) => align.to_string(),
-            None => "left".to_string(),
-        };
+        let text_align = css
+            .get("text-align")
+            .or_else(|| all_selector.as_ref()?.get("text-align"))
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "left".to_string());
 
         Self {
             text_align,
             color,
-            size: size.unwrap_or(12.0),
+            size,
             family,
             style,
             weight,
