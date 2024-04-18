@@ -1,14 +1,17 @@
 mod error;
-mod style;
+pub mod style;
 
 use cairo::{Context, ImageSurface};
 use error::CssError;
 use rayon::prelude::*;
 use std::collections::HashMap;
-pub use style::Stylings;
+use style::Parseable;
 
-pub fn parse(css: &str) -> Result<HashMap<String, Vec<u8>>, CssError<'static>> {
-    let styles = Stylings::new(css).unwrap().styles;
+pub fn parse<T>(css: T) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
+where
+    T: Parseable,
+{
+    let styles = css.parse()?.styles;
 
     styles
         .par_iter()

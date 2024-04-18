@@ -3,18 +3,68 @@ mod font;
 use crate::error::CssError;
 use font::Font;
 use regex::Regex;
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-pub struct Stylings {
+pub struct Styles {
     pub styles: HashMap<String, Style>,
 }
 
-impl Stylings {
+pub trait Parseable {
+    fn parse(self) -> Result<Styles, CssError<'static>>;
+}
+
+impl Parseable for Styles {
+    fn parse(self) -> Result<Styles, CssError<'static>> {
+        Ok(self)
+    }
+}
+
+impl Parseable for &str {
+    fn parse(self) -> Result<Styles, CssError<'static>> {
+        Styles::new(self)
+    }
+}
+
+impl Styles {
     pub fn new(css: &str) -> Result<Self, CssError<'static>> {
-        let css = Styles::from_str(css)?.0;
-        let all_selector = css.get("*");
-        let styles = css
+        let re = Regex::new(r"(?P<selector>\S+)\s*\{\s*(?P<properties>[^}]+)\s*\}").unwrap();
+        let property_re = Regex::new(r"(?P<property>[\w-]+):\s*(?P<value>[^;]+);").unwrap();
+
+        let split = css
+            .split_inclusive('}')
+            .filter_map(|a| {
+                if a.trim().is_empty() {
+                    return None;
+                }
+                Some(a.trim())
+            })
+            .collect::<Vec<&str>>();
+
+        let styles = split
+            .iter()
+            .filter_map(|s| {
+                let mut properties = HashMap::new();
+
+                for cap in re.captures_iter(s) {
+                    let selector = cap["selector"].to_string();
+
+                    for property_cap in property_re.captures_iter(&cap["properties"]) {
+                        properties.insert(
+                            property_cap["property"].to_string(),
+                            property_cap["value"].to_string(),
+                        );
+                    }
+
+                    return Some((selector, properties));
+                }
+
+                None
+            })
+            .collect::<HashMap<String, HashMap<String, String>>>();
+
+        let all_selector = styles.get("*");
+        let styles = styles
             .iter()
             .map(|(selector, properties)| {
                 let style = Style::new(properties, all_selector);
@@ -155,52 +205,6 @@ impl Style {
     }
 }
 
-#[derive(Debug)]
-struct Styles(pub HashMap<String, HashMap<String, String>>);
-
-impl FromStr for Styles {
-    type Err = CssError<'static>;
-
-    fn from_str(css: &str) -> Result<Self, CssError<'static>> {
-        let re = Regex::new(r"(?P<selector>\S+)\s*\{\s*(?P<properties>[^}]+)\s*\}").unwrap();
-        let property_re = Regex::new(r"(?P<property>[\w-]+):\s*(?P<value>[^;]+);").unwrap();
-
-        let split = css
-            .split_inclusive('}')
-            .filter_map(|a| {
-                if a.trim().is_empty() {
-                    return None;
-                }
-                Some(a.trim())
-            })
-            .collect::<Vec<&str>>();
-
-        let styles = split
-            .iter()
-            .filter_map(|s| {
-                let mut properties = HashMap::new();
-
-                for cap in re.captures_iter(s) {
-                    let selector = cap["selector"].to_string();
-
-                    for property_cap in property_re.captures_iter(&cap["properties"]) {
-                        properties.insert(
-                            property_cap["property"].to_string(),
-                            property_cap["value"].to_string(),
-                        );
-                    }
-
-                    return Some((selector, properties));
-                }
-
-                None
-            })
-            .collect::<HashMap<String, HashMap<String, String>>>();
-
-        Ok(Styles(styles))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,7 +224,7 @@ mod tests {
         }
         "#;
 
-        let result = Stylings::new(css);
+        let result = Styles::new(css);
         assert!(result.is_ok());
         let result = result.unwrap().styles;
         assert_eq!(result.len(), 1);
@@ -258,7 +262,7 @@ mod tests {
         }
         "#;
 
-        let result = Stylings::new(css);
+        let result = Styles::new(css);
         assert!(result.is_ok());
         let results = result.clone().unwrap().styles;
         assert_eq!(results.len(), 2);

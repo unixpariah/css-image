@@ -1,46 +1,46 @@
 #[cfg(test)]
 mod tests {
-    use css_image::Stylings;
+    use css_image::{parse, style::Styles};
 
     #[test]
-    fn integration() {
-        single_style();
-        all_selector();
-    }
-
-    fn single_style() {
+    fn test_parse_render() {
         let css = r#"
-        body { color: #ffffff; width: 100px; height: 100px; background-color: #ffffff; }
+        body {
+        color: #ffffff;
+        width: 100px;
+        height: 100px;
+        background-color: #ffffff;
+        margin: 10px 20px 30px 40px;
+        padding: 10px 20px 30px 40px;
+        content: "Hello, World!";
+        border-radius: 10px;
+        }
         "#;
 
-        let result = Stylings::new(css);
+        let result = parse(css);
         assert!(result.is_ok());
-        let result = result.unwrap().styles;
-        assert_eq!(result.len(), 1);
-        assert!(result.get("body").is_some());
-        let body = result.get("body").unwrap();
-        assert_eq!(body.width.unwrap(), 100);
-        assert_eq!(body.height.unwrap(), 100);
-        assert_eq!(body.background_color, [1., 1., 1., 1.]);
-        assert_eq!(body.font.color, [1., 1., 1., 1.]);
     }
 
-    fn all_selector() {
+    #[test]
+    fn test_parse_then_render() {
         let css = r#"
-        body { }
-
-        * { color: #ffffff; width: 100px; height: 100px; background-color: #ffffff; }
+        body {
+        color: #ffffff;
+        width: 100px;
+        height: 100px;
+        background-color: #ffffff;
+        margin: 10px 20px 30px 40px;
+        padding: 10px 20px 30px 40px;
+        content: "Hello, World!";
+        border-radius: 10px;
+        }
         "#;
 
-        let result = Stylings::new(css);
+        let result = Styles::new(css);
         assert!(result.is_ok());
-        let result = result.unwrap().styles;
-        assert_eq!(result.len(), 2);
+        let result = parse(result.unwrap());
+        assert!(result.is_ok());
+        let result = result.unwrap();
         assert!(result.get("body").is_some());
-        let body = result.get("body").unwrap();
-        assert_eq!(body.width.unwrap(), 100);
-        assert_eq!(body.height.unwrap(), 100);
-        assert_eq!(body.background_color, [1., 1., 1., 1.]);
-        assert_eq!(body.font.color, [1., 1., 1., 1.]);
     }
 }
