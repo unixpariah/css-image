@@ -1,7 +1,7 @@
 use super::get_color;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Font {
     pub color: [f64; 4],
     pub size: f64,
@@ -88,5 +88,62 @@ impl Font {
             style,
             weight,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn single_style() {
+        let css = Some(
+            [
+                ("color", "#ffffff"),
+                ("font-size", "12px"),
+                ("font-family", "Arial"),
+                ("font-style", "normal"),
+                ("font-weight", "normal"),
+                ("text-align", "left"),
+            ]
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
+        )
+        .unwrap();
+
+        let result = Font::new(&css, None);
+        assert_eq!(result.color, [1., 1., 1., 1.]);
+        assert_eq!(result.size, 12.0);
+        assert_eq!(result.family, "Arial");
+        assert_eq!(result.style, cairo::FontSlant::Normal);
+        assert_eq!(result.weight, cairo::FontWeight::Normal);
+        assert_eq!(result.text_align, "left");
+    }
+
+    #[test]
+    fn all_selector() {
+        let css = HashMap::new();
+        let all_selector = Some(
+            [
+                ("color", "#ffffff"),
+                ("font-size", "12px"),
+                ("font-family", "Arial"),
+                ("font-style", "normal"),
+                ("font-weight", "normal"),
+                ("text-align", "left"),
+            ]
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
+        );
+
+        let result = Font::new(&css, all_selector.as_ref());
+        assert_eq!(result.color, [1., 1., 1., 1.]);
+        assert_eq!(result.size, 12.0);
+        assert_eq!(result.family, "Arial");
+        assert_eq!(result.style, cairo::FontSlant::Normal);
+        assert_eq!(result.weight, cairo::FontWeight::Normal);
+        assert_eq!(result.text_align, "left");
     }
 }

@@ -5,7 +5,7 @@ use font::Font;
 use regex::Regex;
 use std::{collections::HashMap, str::FromStr};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Stylings {
     pub styles: HashMap<String, Style>,
 }
@@ -26,7 +26,7 @@ impl Stylings {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Style {
     pub width: Option<i32>,
     pub height: Option<i32>,
@@ -74,27 +74,9 @@ impl Style {
     fn new(css: &HashMap<String, String>, all_selector: Option<&HashMap<String, String>>) -> Self {
         let get_property = |property: &str| {
             css.get(property)
-                .and_then(|s| {
-                    if s.ends_with("px") {
-                        Some(s.replace("px", ""))
-                    } else {
-                        None
-                    }
-                })
+                .or_else(|| all_selector.as_ref()?.get(property))
+                .and_then(|s| s.strip_suffix("px"))
                 .and_then(|s| s.parse::<i32>().ok())
-                .or_else(|| {
-                    all_selector
-                        .as_ref()?
-                        .get(property)
-                        .and_then(|s| {
-                            if s.ends_with("px") {
-                                Some(s.replace("px", ""))
-                            } else {
-                                None
-                            }
-                        })
-                        .and_then(|s| s.parse::<i32>().ok())
-                })
         };
 
         let width = get_property("width");
@@ -107,61 +89,55 @@ impl Style {
             .map(|color| get_color(color))
             .unwrap_or([0., 0., 0., 1.]);
 
-        let get_padding_or_margin = |property: &str| match css
-            .get(property)
-            .or_else(|| all_selector.as_ref()?.get(property))
-        {
-            Some(value) => {
-                let values: Vec<i32> = value.split(' ').map(|s| s.parse().unwrap_or(0)).collect();
-                match values.len() {
-                    1 => [values[0]; 4],
-                    2 => [values[0], values[1], values[0], values[1]],
-                    3 => [values[0], values[1], values[2], values[1]],
-                    4 => [values[0], values[1], values[2], values[3]],
-                    _ => [0; 4],
-                }
-            }
-            None => [0; 4],
-        };
+        let get_padding_or_margin = |property: &str| {
+            let directions = [
+                format!("{}-top", property),
+                format!("{}-right", property),
+                format!("{}-bottom", property),
+                format!("{}-left", property),
+            ];
 
-        let mut padding = get_padding_or_margin("padding");
-        let mut margin = get_padding_or_margin("margin");
+            let mut values = css
+                .get(property)
+                .or_else(|| all_selector.as_ref()?.get(property))
+                .map_or([0; 4], |value| {
+                    let values: Vec<i32> = value
+                        .split_whitespace()
+                        .filter_map(|s| match s.ends_with("px") {
+                            true => s.replace("px", "").parse().ok(),
+                            false => None,
+                        })
+                        .collect();
+                    match values.len() {
+                        1 => [values[0]; 4],
+                        2 => [values[0], values[1], values[0], values[1]],
+                        3 => [values[0], values[1], values[2], values[1]],
+                        4 => [values[0], values[1], values[2], values[3]],
+                        _ => [0; 4],
+                    }
+                });
 
-        [
-            "padding-top",
-            "padding-right",
-            "padding-bottom",
-            "padding-left",
-        ]
-        .into_iter()
-        .for_each(|direction| {
-            if let Some(value) = get_property(direction) {
-                match direction {
-                    "padding-top" => padding[0] = value,
-                    "padding-right" => padding[1] = value,
-                    "padding-bottom" => padding[2] = value,
-                    "padding-left" => padding[3] = value,
-                    _ => {}
-                }
-            }
-        });
-
-        ["margin-top", "margin-right", "margin-bottom", "margin-left"]
-            .into_iter()
-            .for_each(|direction| {
+            directions.iter().for_each(|direction| {
                 if let Some(value) = get_property(direction) {
-                    match direction {
-                        "margin-top" => margin[0] = value,
-                        "margin-right" => margin[1] = value,
-                        "margin-bottom" => margin[2] = value,
-                        "margin-left" => margin[3] = value,
+                    match direction.as_str() {
+                        "padding-top" | "margin-top" => values[0] = value,
+                        "padding-right" | "margin-right" => values[1] = value,
+                        "padding-bottom" | "margin-bottom" => values[2] = value,
+                        "padding-left" | "margin-left" => values[3] = value,
                         _ => {}
                     }
                 }
             });
 
+            values
+        };
+
+        let padding = get_padding_or_margin("padding");
+        let margin = get_padding_or_margin("margin");
+
         let content = css
             .get("content")
+            .or_else(|| all_selector.as_ref()?.get("content"))
             .map(|s| s.trim().replace("\"", "").to_string());
 
         let font = Font::new(&css, all_selector);
@@ -222,5 +198,97 @@ impl FromStr for Styles {
             .collect::<HashMap<String, HashMap<String, String>>>();
 
         Ok(Styles(styles))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn single_style() {
+        let css = r#"
+        body {
+        color: #ffffff;
+        width: 100px;
+        height: 100px;
+        background-color: #ffffff;
+        margin: 10px 20px 30px 40px;
+        padding: 10px 20px 30px 40px;
+        content: "Hello, World!";
+        border-radius: 10px;
+        }
+        "#;
+
+        let result = Stylings::new(css);
+        assert!(result.is_ok());
+        let result = result.unwrap().styles;
+        assert_eq!(result.len(), 1);
+        assert!(result.get("body").is_some());
+        let body = result.get("body").unwrap();
+        assert_eq!(body.width.unwrap(), 100);
+        assert_eq!(body.height.unwrap(), 100);
+        assert_eq!(body.background_color, [1., 1., 1., 1.]);
+        assert_eq!(body.font.color, [1., 1., 1., 1.]);
+        assert_eq!(body.margin, [10, 20, 30, 40]);
+        assert_eq!(body.padding, [10, 20, 30, 40]);
+        assert_eq!(body.content, Some("Hello, World!".to_string()));
+        assert_eq!(body.border_radius, 10.);
+    }
+
+    #[test]
+    fn all_selector() {
+        let css = r#"
+        body { }
+
+        * {
+        color: #ffffff;
+        width: 100px;
+        height: 100px;
+        background-color: #ffffff;
+        margin: 10px 20px 30px 40px;
+        padding: 10px 20px 30px 40px;
+        content: "Hello, World!";
+        border-radius: 10px;
+
+        font-family: Arial;
+        font-size: 16px;
+        font-weight: bold;
+        font-style: italic;
+        }
+        "#;
+
+        let result = Stylings::new(css);
+        assert!(result.is_ok());
+        let results = result.clone().unwrap().styles;
+        assert_eq!(results.len(), 2);
+        assert!(results.get("body").is_some());
+        let body = results.get("body").unwrap();
+        assert_eq!(body.width.unwrap(), 100);
+        assert_eq!(body.height.unwrap(), 100);
+        assert_eq!(body.background_color, [1., 1., 1., 1.]);
+        assert_eq!(body.font.color, [1., 1., 1., 1.]);
+        assert_eq!(body.margin, [10, 20, 30, 40]);
+        assert_eq!(body.padding, [10, 20, 30, 40]);
+        assert_eq!(body.content, Some("Hello, World!".to_string()));
+        assert_eq!(body.border_radius, 10.);
+
+        let results = result.unwrap().styles;
+        assert_eq!(results.len(), 2);
+        assert!(results.get("*").is_some());
+        let body = results.get("*").unwrap();
+        assert_eq!(body.width.unwrap(), 100);
+        assert_eq!(body.height.unwrap(), 100);
+        assert_eq!(body.background_color, [1., 1., 1., 1.]);
+        assert_eq!(body.font.color, [1., 1., 1., 1.]);
+        assert_eq!(body.margin, [10, 20, 30, 40]);
+        assert_eq!(body.padding, [10, 20, 30, 40]);
+        assert_eq!(body.content, Some("Hello, World!".to_string()));
+        assert_eq!(body.border_radius, 10.);
+
+        assert_eq!(body.font.family, "Arial");
+        assert_eq!(body.font.size, 16.);
+        assert_eq!(body.font.weight, cairo::FontWeight::Bold);
+        assert_eq!(body.font.style, cairo::FontSlant::Italic);
     }
 }

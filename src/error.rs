@@ -1,7 +1,7 @@
 use std::{error::Error, fmt};
 
 #[allow(clippy::enum_variant_names)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CssError<'a> {
     SizeError(&'a str),
     ContentError(&'a str),
