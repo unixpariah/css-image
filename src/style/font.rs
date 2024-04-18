@@ -32,7 +32,7 @@ impl Font {
         };
 
         let family = match css.get("font-family") {
-            Some(family) => family.to_string(),
+            Some(family) => family.trim().replace("\"", "").to_string(),
             None => "Arial".to_string(),
         };
 

@@ -139,7 +139,9 @@ impl Style {
             None => [0; 4],
         };
 
-        let content = css.get("content").map(|s| s.to_string());
+        let content = css
+            .get("content")
+            .map(|s| s.trim().replace("\"", "").to_string());
         let font = Font::new(&css);
 
         Self {
