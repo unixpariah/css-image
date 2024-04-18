@@ -1,21 +1,21 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use css_image::{parse, style::Styles};
+use css_image::{render, style::parse};
 
 fn bench_resize(c: &mut Criterion) {
     let css = r#"
     one { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
     "#;
 
-    c.bench_function("single_element_parse", |b| b.iter(|| Styles::new(css)));
-    c.bench_function("single_element_parse_render", |b| b.iter(|| parse(css)));
+    c.bench_function("single_element_parse", |b| b.iter(|| parse(css)));
+    c.bench_function("single_element_parse_render", |b| b.iter(|| render(css)));
 
     let css = r#"
     one { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
     two { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
     "#;
 
-    c.bench_function("double_element_parse", |b| b.iter(|| Styles::new(css)));
-    c.bench_function("double_element_parse_render", |b| b.iter(|| parse(css)));
+    c.bench_function("double_element_parse", |b| b.iter(|| parse(css)));
+    c.bench_function("double_element_parse_render", |b| b.iter(|| render(css)));
 
     let css = r#"
     one { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
@@ -23,8 +23,8 @@ fn bench_resize(c: &mut Criterion) {
     three { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
     "#;
 
-    c.bench_function("triple_element_parse", |b| b.iter(|| Styles::new(css)));
-    c.bench_function("triple_element_parse_render", |b| b.iter(|| parse(css)));
+    c.bench_function("triple_element_parse", |b| b.iter(|| parse(css)));
+    c.bench_function("triple_element_parse_render", |b| b.iter(|| render(css)));
 
     let css = r#"
     one { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
@@ -39,8 +39,8 @@ fn bench_resize(c: &mut Criterion) {
     ten { background-color: #FFFFFF; width: 100px; height: 100px; content: "aaaa"; color: red; font-size: 20; font-weight: bold; font-style: italic; }
     "#;
 
-    c.bench_function("complex_element_parse", |b| b.iter(|| Styles::new(css)));
-    c.bench_function("complex_element_parse_render", |b| b.iter(|| parse(css)));
+    c.bench_function("complex_element_parse", |b| b.iter(|| parse(css)));
+    c.bench_function("complex_element_parse_render", |b| b.iter(|| render(css)));
 }
 
 criterion_group!(benches, bench_resize);

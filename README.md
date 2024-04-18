@@ -24,7 +24,7 @@ Only px units are supported for now.
 ## Usage
 
 ```rust
-use css_image::parse;
+use css_image::render;
 
 fn main() {
     let css = r#"
@@ -35,7 +35,23 @@ fn main() {
         }
     "#;
 
-    let parsed = parse(css).unwrap();
-    println!("{:?}", parsed); // Returns a hashmap of css selector -> Image
+    let images = render(css).unwrap(); // Returns a hashmap of css selector -> Image
 }
+```
+
+```rust
+use css_image::{render, Styles};
+
+let css = r#"
+        body {
+            background-color: red;
+            width: 100px;
+            height: 100px;
+        }
+    "#;
+
+let mut styles = css.parse::<Styles>().unwrap(); // Parse css string to Styles for easier access
+styles.get_mut("body").unwrap().content = "Hello world!"; // Set content of body to "Hello world!"
+
+let images = render(styles).unwrap(); // Returns a hashmap of css selector -> Image
 ```

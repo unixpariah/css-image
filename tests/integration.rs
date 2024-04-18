@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use css_image::{parse, style::Styles};
+    use css_image::{parse, render};
 
     #[test]
     fn test_parse_render() {
@@ -17,7 +17,7 @@ mod tests {
         }
         "#;
 
-        let result = parse(css);
+        let result = render(css);
         assert!(result.is_ok());
     }
 
@@ -36,9 +36,9 @@ mod tests {
         }
         "#;
 
-        let result = Styles::new(css);
+        let result = parse(css);
         assert!(result.is_ok());
-        let result = parse(result.unwrap());
+        let result = render(result.unwrap());
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.get("body").is_some());

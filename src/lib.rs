@@ -1,13 +1,126 @@
 mod error;
-pub mod style;
+mod style;
 
 use cairo::{Context, ImageSurface};
 use error::CssError;
+use lazy_static::lazy_static;
 use rayon::prelude::*;
+use regex::Regex;
 use std::collections::HashMap;
-use style::Parseable;
+use style::{Parseable, Style};
 
-pub fn parse<T>(css: T) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
+lazy_static! {
+    static ref RE: Regex =
+        Regex::new(r"(?P<selector>\S+)\s*\{\s*(?P<properties>[^}]+)\s*\}").unwrap();
+    static ref PROPERTY_RE: Regex =
+        Regex::new(r"(?P<property>[\w-]+):\s*(?P<value>[^;]+);").unwrap();
+}
+
+/// Parse CSS into a HashMap of selector name -> Style for easier manipulation
+///
+/// # Examples
+///
+/// ```
+/// use css_image::parse;
+///
+/// let css = r#"
+/// body {
+///    background-color: #FFFFFF;
+///    width: 100px;
+///    height: 100px;
+/// }
+/// "#;
+///
+/// let mut result = parse(css).unwrap(); // HashMap of selector name -> Style
+///
+/// let body = result.get_mut("body").unwrap(); // Get the body element
+/// body.content = Some("Hello, World!".to_string()); // Change the content of the body element
+/// ```
+pub fn parse(css: &str) -> Result<HashMap<String, Style>, CssError<'static>> {
+    let split = css
+        .split_inclusive('}')
+        .filter_map(|selector| {
+            let selector = selector.trim();
+            if selector.is_empty() {
+                return None;
+            }
+            Some(selector)
+        })
+        .collect::<Vec<&str>>();
+
+    let all_selector = split.iter().find_map(|s| {
+        let mut properties = HashMap::new();
+
+        for cap in RE.captures_iter(s) {
+            if &cap["selector"] == "*" {
+                for property_cap in PROPERTY_RE.captures_iter(&cap["properties"]) {
+                    properties.insert(
+                        property_cap["property"].to_string(),
+                        property_cap["value"].to_string(),
+                    );
+                }
+
+                return Some(properties);
+            }
+        }
+
+        None
+    });
+
+    Ok(split
+        .par_iter()
+        .filter_map(|s| {
+            let mut properties = HashMap::with_capacity(split.len() - 1);
+
+            for cap in RE.captures_iter(s) {
+                let selector = cap["selector"].to_string();
+
+                PROPERTY_RE
+                    .captures_iter(&cap["properties"])
+                    .for_each(|property_cap| {
+                        properties.insert(
+                            property_cap["property"].to_string(),
+                            property_cap["value"].to_string(),
+                        );
+                    });
+
+                return Some((selector, properties));
+            }
+
+            None
+        })
+        .map(|(selector, properties)| {
+            let style = Style::new(&properties, all_selector.as_ref());
+            (selector, style)
+        })
+        .collect::<HashMap<String, Style>>())
+}
+
+/// Render images with CSS
+///
+/// # Examples
+///
+/// ```
+/// use css_image::{render, parse};
+///
+/// let css = r#"
+/// body {
+///    background-color: #FFFFFF;
+///    width: 100px;
+///    height: 100px;
+/// }
+/// "#;
+///
+/// let result = render(css); // HashMap of selector name -> image data
+/// assert!(result.is_ok());
+///
+/// let mut styles = parse(css).unwrap(); // Parse the CSS into a Styles struct for easier manipulation
+/// styles.get_mut("body").unwrap().content = Some("Hello, World!".to_string()); // Change the content of the body element
+///
+/// let result = render(styles); // HashMap of selector name -> image data
+/// assert!(result.is_ok());
+/// ```
+pub fn render<T>(css: T) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
 where
     T: Parseable,
 {
