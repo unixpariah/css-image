@@ -12,6 +12,7 @@ authors = ["unixpariah"]
 
 [dependencies]
 cairo-rs = { version = "0.19.2", features = ["png"] }
+lazy_static = "1.4.0"
 rayon = "1.10.0"
 regex = "1.10.4"
 

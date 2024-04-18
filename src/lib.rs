@@ -11,7 +11,7 @@ pub fn parse<T>(css: T) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
 where
     T: Parseable,
 {
-    let styles = css.parse()?.styles;
+    let styles = css.parse()?;
 
     styles
         .par_iter()

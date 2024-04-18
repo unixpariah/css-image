@@ -2,8 +2,17 @@ mod font;
 
 use crate::error::CssError;
 use font::Font;
+use lazy_static::lazy_static;
+use rayon::prelude::*;
 use regex::Regex;
 use std::collections::HashMap;
+
+lazy_static! {
+    static ref RE: Regex =
+        Regex::new(r"(?P<selector>\S+)\s*\{\s*(?P<properties>[^}]+)\s*\}").unwrap();
+    static ref PROPERTY_RE: Regex =
+        Regex::new(r"(?P<property>[\w-]+):\s*(?P<value>[^;]+);").unwrap();
+}
 
 #[derive(Debug, Clone)]
 pub struct Styles {
@@ -11,66 +20,80 @@ pub struct Styles {
 }
 
 pub trait Parseable {
-    fn parse(self) -> Result<Styles, CssError<'static>>;
+    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>>;
 }
 
 impl Parseable for Styles {
-    fn parse(self) -> Result<Styles, CssError<'static>> {
-        Ok(self)
+    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
+        Ok(self.styles)
     }
 }
 
 impl Parseable for &str {
-    fn parse(self) -> Result<Styles, CssError<'static>> {
-        Styles::new(self)
+    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
+        Ok(Styles::new(self)?.styles)
     }
 }
 
 impl Styles {
     pub fn new(css: &str) -> Result<Self, CssError<'static>> {
-        let re = Regex::new(r"(?P<selector>\S+)\s*\{\s*(?P<properties>[^}]+)\s*\}").unwrap();
-        let property_re = Regex::new(r"(?P<property>[\w-]+):\s*(?P<value>[^;]+);").unwrap();
-
         let split = css
             .split_inclusive('}')
-            .filter_map(|a| {
-                if a.trim().is_empty() {
+            .filter_map(|selector| {
+                let selector = selector.trim();
+                if selector.is_empty() {
                     return None;
                 }
-                Some(a.trim())
+                Some(selector)
             })
             .collect::<Vec<&str>>();
 
-        let styles = split
-            .iter()
-            .filter_map(|s| {
-                let mut properties = HashMap::new();
+        let all_selector = split.iter().find_map(|s| {
+            let mut properties = HashMap::new();
 
-                for cap in re.captures_iter(s) {
-                    let selector = cap["selector"].to_string();
-
-                    for property_cap in property_re.captures_iter(&cap["properties"]) {
+            for cap in RE.captures_iter(s) {
+                if &cap["selector"] == "*" {
+                    for property_cap in PROPERTY_RE.captures_iter(&cap["properties"]) {
                         properties.insert(
                             property_cap["property"].to_string(),
                             property_cap["value"].to_string(),
                         );
                     }
 
+                    return Some(properties);
+                }
+            }
+
+            None
+        });
+
+        let styles = split
+            .par_iter()
+            .filter_map(|s| {
+                let mut properties = HashMap::with_capacity(split.len() - 1);
+
+                for cap in RE.captures_iter(s) {
+                    let selector = cap["selector"].to_string();
+
+                    PROPERTY_RE
+                        .captures_iter(&cap["properties"])
+                        .for_each(|property_cap| {
+                            properties.insert(
+                                property_cap["property"].to_string(),
+                                property_cap["value"].to_string(),
+                            );
+                        });
+
                     return Some((selector, properties));
                 }
 
                 None
             })
-            .collect::<HashMap<String, HashMap<String, String>>>();
-
-        let all_selector = styles.get("*");
-        let styles = styles
-            .iter()
             .map(|(selector, properties)| {
-                let style = Style::new(properties, all_selector);
-                (selector.to_string(), style)
+                let style = Style::new(&properties, all_selector.as_ref());
+                (selector, style)
             })
-            .collect();
+            .collect::<HashMap<String, Style>>();
 
         Ok(Self { styles })
     }
