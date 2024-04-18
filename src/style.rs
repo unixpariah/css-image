@@ -15,6 +15,26 @@ impl Parseable for HashMap<String, Style> {
     }
 }
 
+impl Parseable for HashMap<String, &mut Style> {
+    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
+        let cloned_map: HashMap<String, Style> = self
+            .into_iter()
+            .map(|(key, value)| (key, value.clone()))
+            .collect();
+        Ok(cloned_map)
+    }
+}
+
+impl Parseable for HashMap<String, &Style> {
+    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
+        let cloned_map: HashMap<String, Style> = self
+            .into_iter()
+            .map(|(key, value)| (key, value.clone()))
+            .collect();
+        Ok(cloned_map)
+    }
+}
+
 impl Parseable for &str {
     fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
         parse(self)

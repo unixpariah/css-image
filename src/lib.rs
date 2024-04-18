@@ -1,5 +1,5 @@
 mod error;
-mod style;
+pub mod style;
 
 use cairo::{Context, ImageSurface};
 use error::CssError;
