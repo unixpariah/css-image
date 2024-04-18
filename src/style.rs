@@ -45,17 +45,12 @@ pub(super) fn get_color(color: &str) -> [f64; 4] {
             .map(|s| s.trim().parse().unwrap_or(0) as f64 / 255.)
             .collect();
         if rgb.len() == 3 {
-            [
-                rgb[0] as f64 / 255.,
-                rgb[1] as f64 / 255.,
-                rgb[2] as f64 / 255.,
-                1.,
-            ]
+            [rgb[0] as f64, rgb[1] as f64, rgb[2] as f64, 1.]
         } else {
             [0., 0., 0., 1.]
         }
     } else {
-        match color {
+        match color.replace("\"", "").as_str() {
             "red" => [1., 0., 0., 1.],
             "green" => [0., 1., 0., 1.],
             "blue" => [0., 0., 1., 1.],
@@ -242,5 +237,172 @@ mod tests {
         assert_eq!(body.font.size, 16.);
         assert_eq!(body.font.weight, cairo::FontWeight::Bold);
         assert_eq!(body.font.style, cairo::FontSlant::Italic);
+    }
+
+    #[test]
+    fn other() {
+        let css = r#"
+        body {
+        width: 100px;
+        height: 100px;
+        background-color: rgb(255, 255, 255);
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap().get("body").unwrap().background_color,
+            [1., 1., 1., 1.]
+        );
+    }
+
+    #[test]
+    fn test_colors() {
+        let css = r#"
+        body {
+        background-color: "white";
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap().get("body").unwrap().background_color,
+            [1., 1., 1., 1.]
+        );
+
+        let css = r#"
+        body {
+        background-color: "red";
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap().get("body").unwrap().background_color,
+            [1., 0., 0., 1.]
+        );
+
+        let css = r#"
+        body {
+        background-color: "green";
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap().get("body").unwrap().background_color,
+            [0., 1., 0., 1.]
+        );
+
+        let css = r#"
+        body {
+        background-color: "blue";
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap().get("body").unwrap().background_color,
+            [0., 0., 1., 1.]
+        );
+    }
+
+    #[test]
+    fn margin_padding() {
+        let css = r#"
+        body {
+        margin: 10px 20px 30px 40px;
+        padding: 10px 20px 30px 40px;
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.get("body").unwrap().margin, [10, 20, 30, 40]);
+        assert_eq!(result.get("body").unwrap().padding, [10, 20, 30, 40]);
+
+        let css = r#"
+        body {
+        margin: 10px;
+        padding: 10px;
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.get("body").unwrap().margin, [10; 4]);
+        assert_eq!(result.get("body").unwrap().padding, [10; 4]);
+        let css = r#"
+        body {
+        margin: 10px 20px;
+        padding: 10px 20px;
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.get("body").unwrap().margin, [10, 20, 10, 20]);
+        assert_eq!(result.get("body").unwrap().padding, [10, 20, 10, 20]);
+
+        let css = r#"
+        body {
+        margin: 10px 20px 30px;
+        padding: 10px 20px 30px;
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.get("body").unwrap().margin, [10, 20, 30, 20]);
+        assert_eq!(result.get("body").unwrap().padding, [10, 20, 30, 20]);
+
+        let css = r#"
+        body {
+        margin-top: 10px;
+        margin-right: 20px;
+        margin-bottom: 30px;
+        margin-left: 40px;
+
+        padding-top: 10px;
+        padding-right: 20px;
+        padding-bottom: 30px;
+        padding-left: 40px;
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.get("body").unwrap().margin, [10, 20, 30, 40]);
+        assert_eq!(result.get("body").unwrap().padding, [10, 20, 30, 40]);
+    }
+
+    #[test]
+    fn error_handling() {
+        let css = r#"
+        body {
+        width: 100;
+        height: 100px;
+        background-color: idk;
+        }
+        "#;
+
+        let result = parse(css);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(
+            result.get("body").unwrap().background_color,
+            [0., 0., 0., 1.]
+        );
+        assert!(result.get("body").unwrap().width.is_none());
     }
 }
