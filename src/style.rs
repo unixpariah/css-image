@@ -15,26 +15,6 @@ impl Parseable for HashMap<String, Style> {
     }
 }
 
-impl Parseable for HashMap<String, &mut Style> {
-    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
-        let cloned_map: HashMap<String, Style> = self
-            .into_iter()
-            .map(|(key, value)| (key, value.clone()))
-            .collect();
-        Ok(cloned_map)
-    }
-}
-
-impl Parseable for HashMap<String, &Style> {
-    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
-        let cloned_map: HashMap<String, Style> = self
-            .into_iter()
-            .map(|(key, value)| (key, value.clone()))
-            .collect();
-        Ok(cloned_map)
-    }
-}
-
 impl Parseable for &str {
     fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
         parse(self)
@@ -59,6 +39,21 @@ pub(super) fn get_color(color: &str) -> [f64; 4] {
         let g = u8::from_str_radix(&color[3..5], 16).unwrap_or(0) as f64 / 255.;
         let b = u8::from_str_radix(&color[5..7], 16).unwrap_or(0) as f64 / 255.;
         [r, g, b, 1.]
+    } else if color.starts_with("rgba") {
+        let rgba: Vec<f64> = color[4..color.len() - 1]
+            .split(',')
+            .map(|s| s.trim().parse().unwrap_or(0) as f64 / 255.)
+            .collect();
+        if rgba.len() == 4 {
+            [
+                rgba[0] as f64,
+                rgba[1] as f64,
+                rgba[2] as f64,
+                rgba[3] as f64,
+            ]
+        } else {
+            [0., 0., 0., 1.]
+        }
     } else if color.starts_with("rgb") {
         let rgb: Vec<f64> = color[4..color.len() - 1]
             .split(',')

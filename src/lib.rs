@@ -59,11 +59,9 @@ pub fn parse(css: &str) -> Result<HashMap<String, Style>, CssError<'static>> {
                         property_cap["value"].to_string(),
                     );
                 }
-
                 return Some(properties);
             }
         }
-
         None
     });
 
