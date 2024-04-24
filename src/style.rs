@@ -34,7 +34,7 @@ pub struct Style {
 }
 
 pub(super) fn get_color(color: &str) -> [f64; 4] {
-    if color.starts_with("#") {
+    if color.starts_with('#') {
         let r = u8::from_str_radix(&color[1..3], 16).unwrap_or(0) as f64 / 255.;
         let g = u8::from_str_radix(&color[3..5], 16).unwrap_or(0) as f64 / 255.;
         let b = u8::from_str_radix(&color[5..7], 16).unwrap_or(0) as f64 / 255.;
@@ -45,12 +45,7 @@ pub(super) fn get_color(color: &str) -> [f64; 4] {
             .map(|s| s.trim().parse().unwrap_or(0) as f64 / 255.)
             .collect();
         if rgba.len() == 4 {
-            [
-                rgba[0] as f64,
-                rgba[1] as f64,
-                rgba[2] as f64,
-                rgba[3] as f64,
-            ]
+            [rgba[0], rgba[1], rgba[2], rgba[3]]
         } else {
             [0., 0., 0., 1.]
         }
@@ -60,12 +55,12 @@ pub(super) fn get_color(color: &str) -> [f64; 4] {
             .map(|s| s.trim().parse().unwrap_or(0) as f64 / 255.)
             .collect();
         if rgb.len() == 3 {
-            [rgb[0] as f64, rgb[1] as f64, rgb[2] as f64, 1.]
+            [rgb[0], rgb[1], rgb[2], 1.]
         } else {
             [0., 0., 0., 1.]
         }
     } else {
-        match color.replace("\"", "").as_str() {
+        match color.replace('"', "").as_str() {
             "red" => [1., 0., 0., 1.],
             "green" => [0., 1., 0., 1.],
             "blue" => [0., 0., 1., 1.],
@@ -146,9 +141,9 @@ impl Style {
         let content = css
             .get("content")
             .or_else(|| all_selector.as_ref()?.get("content"))
-            .map(|s| s.trim().replace("\"", "").to_string());
+            .map(|s| s.trim().replace('"', "").to_string());
 
-        let font = Font::new(&css, all_selector);
+        let font = Font::new(css, all_selector);
 
         Self {
             padding,

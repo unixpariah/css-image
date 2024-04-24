@@ -9,6 +9,7 @@ pub struct Font {
     pub style: cairo::FontSlant,
     pub weight: cairo::FontWeight,
     pub text_align: String,
+    pub letter_spacing: f64,
 }
 impl Font {
     pub fn new(
@@ -52,8 +53,14 @@ impl Font {
         let family = css
             .get("font-family")
             .or_else(|| all_selector.as_ref()?.get("font-family"))
-            .map(|s| s.trim().replace("\"", ""))
+            .map(|s| s.trim().replace('\"', ""))
             .unwrap_or_else(|| "Arial".to_string());
+
+        let letter_spacing = css
+            .get("letter-spacing")
+            .or_else(|| all_selector.as_ref()?.get("font-family"))
+            .map(|s| s.trim().replace("px", "").parse::<f64>().unwrap_or(0.0))
+            .unwrap_or_else(|| 0.0);
 
         let style = css
             .get("font-style")
@@ -81,6 +88,7 @@ impl Font {
             .unwrap_or_else(|| "left".to_string());
 
         Self {
+            letter_spacing,
             text_align,
             color,
             size,
@@ -97,20 +105,17 @@ mod tests {
 
     #[test]
     fn single_style() {
-        let css = Some(
-            [
-                ("color", "#ffffff"),
-                ("font-size", "12px"),
-                ("font-family", "Arial"),
-                ("font-style", "normal"),
-                ("font-weight", "normal"),
-                ("text-align", "left"),
-            ]
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect(),
-        )
-        .unwrap();
+        let css = [
+            ("color", "#ffffff"),
+            ("font-size", "12px"),
+            ("font-family", "Arial"),
+            ("font-style", "normal"),
+            ("font-weight", "normal"),
+            ("text-align", "left"),
+        ]
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
 
         let result = Font::new(&css, None);
         assert_eq!(result.color, [1., 1., 1., 1.]);

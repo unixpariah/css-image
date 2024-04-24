@@ -122,10 +122,10 @@ pub fn render<T>(css: T) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
 where
     T: Parseable,
 {
-    let styles = css.parse()?;
+    let mut styles = css.parse()?;
 
     styles
-        .par_iter()
+        .par_iter_mut()
         .map(|style| {
             let name = style.0;
             let style = style.1;
@@ -136,6 +136,11 @@ where
 
             let mut text_width = 0;
 
+            if let Some(content) = &style.content {
+                if content.is_empty() {
+                    style.content = None;
+                }
+            }
             if let Some(content) = &style.content {
                 let surface = ImageSurface::create(cairo::Format::ARgb32, 0, 0)
                     .map_err(|_| CssError::ContentError("Failed to create cairo surface"))?;
