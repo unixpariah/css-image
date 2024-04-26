@@ -70,9 +70,8 @@ pub fn parse(css: &str) -> Result<HashMap<String, Style>, CssError<'static>> {
         .filter_map(|s| {
             let mut properties = HashMap::with_capacity(split.len() - 1);
 
-            for cap in RE.captures_iter(s) {
+            if let Some(cap) = RE.captures_iter(s).next() {
                 let selector = cap["selector"].to_string();
-
                 PROPERTY_RE
                     .captures_iter(&cap["properties"])
                     .for_each(|property_cap| {
@@ -81,7 +80,6 @@ pub fn parse(css: &str) -> Result<HashMap<String, Style>, CssError<'static>> {
                             property_cap["value"].to_string(),
                         );
                     });
-
                 return Some((selector, properties));
             }
 

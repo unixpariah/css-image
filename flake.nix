@@ -25,13 +25,14 @@
             cargo
             rustup
             rustc
-            nodejs_21
+            nodePackages_latest.nodejs
+            clippy
           ];
         };
       in {
         devShell = rustEnv;
         packages = {
-          ssb = pkgs.stdenv.mkDerivation {
+          css-image = pkgs.stdenv.mkDerivation {
             name = "css-image";
             src = ./.;
             buildInputs = with pkgs; [rustc cargo];

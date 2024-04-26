@@ -35,15 +35,18 @@ pub struct Style {
 
 pub(super) fn get_color(color: &str) -> [f64; 4] {
     if color.starts_with('#') {
-        let r = u8::from_str_radix(&color[1..3], 16).unwrap_or(0) as f64 / 255.;
-        let g = u8::from_str_radix(&color[3..5], 16).unwrap_or(0) as f64 / 255.;
-        let b = u8::from_str_radix(&color[5..7], 16).unwrap_or(0) as f64 / 255.;
-        [r, g, b, 1.]
+        let r = u8::from_str_radix(color.get(1..3).unwrap_or("00"), 16).unwrap_or(0) as f64 / 255.;
+        let g = u8::from_str_radix(color.get(3..5).unwrap_or("00"), 16).unwrap_or(0) as f64 / 255.;
+        let b = u8::from_str_radix(color.get(5..7).unwrap_or("00"), 16).unwrap_or(0) as f64 / 255.;
+        let a =
+            u8::from_str_radix(color.get(7..9).unwrap_or("ff"), 16).unwrap_or(255) as f64 / 255.;
+        [r, g, b, a]
     } else if color.starts_with("rgba") {
-        let rgba: Vec<f64> = color[4..color.len() - 1]
+        let rgba = color[4..color.len() - 1]
+            .replace(['(', ')'], "")
             .split(',')
             .map(|s| s.trim().parse().unwrap_or(0) as f64 / 255.)
-            .collect();
+            .collect::<Vec<_>>();
         if rgba.len() == 4 {
             [rgba[0], rgba[1], rgba[2], rgba[3]]
         } else {
@@ -51,6 +54,7 @@ pub(super) fn get_color(color: &str) -> [f64; 4] {
         }
     } else if color.starts_with("rgb") {
         let rgb: Vec<f64> = color[4..color.len() - 1]
+            .replace(['(', ')'], "")
             .split(',')
             .map(|s| s.trim().parse().unwrap_or(0) as f64 / 255.)
             .collect();
@@ -122,11 +126,11 @@ impl Style {
 
             directions.iter().for_each(|direction| {
                 if let Some(value) = get_property(direction) {
-                    match direction.as_str() {
-                        "padding-top" | "margin-top" => values[0] = value,
-                        "padding-right" | "margin-right" => values[1] = value,
-                        "padding-bottom" | "margin-bottom" => values[2] = value,
-                        "padding-left" | "margin-left" => values[3] = value,
+                    match direction.as_str().split('-').last().unwrap() {
+                        "top" => values[0] = value,
+                        "right" => values[1] = value,
+                        "bottom" => values[2] = value,
+                        "left" => values[3] = value,
                         _ => {}
                     }
                 }
@@ -137,6 +141,20 @@ impl Style {
 
         let padding = get_padding_or_margin("padding");
         let margin = get_padding_or_margin("margin");
+
+        /*
+                let border = css
+                    .get("border")
+                    .or_else(|| all_selector.as_ref()?.get("border"))
+                    .unwrap()
+                    .split_whitespace()
+                    .collect::<Vec<&str>>()
+                    .first()
+                    .unwrap()
+                    .replace("px", "")
+                    .parse::<i32>()
+                    .unwrap();
+        */
 
         let content = css
             .get("content")
