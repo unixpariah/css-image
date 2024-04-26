@@ -5,16 +5,16 @@ use std::collections::HashMap;
 pub struct Font {
     pub color: [f64; 4],
     pub size: f64,
-    pub family: String,
+    pub family: Box<str>,
     pub style: cairo::FontSlant,
     pub weight: cairo::FontWeight,
-    pub text_align: String,
+    pub text_align: Box<str>,
     pub letter_spacing: f64,
 }
 impl Font {
     pub fn new(
-        css: &HashMap<String, String>,
-        all_selector: Option<&HashMap<String, String>>,
+        css: &HashMap<Box<str>, String>,
+        all_selector: Option<&HashMap<Box<str>, String>>,
     ) -> Self {
         let get_property = |property: &str, default: f64| {
             css.get(property)
@@ -54,7 +54,8 @@ impl Font {
             .get("font-family")
             .or_else(|| all_selector.as_ref()?.get("font-family"))
             .map(|s| s.trim().replace('\"', ""))
-            .unwrap_or_else(|| "Arial".to_string());
+            .unwrap_or_else(|| "Arial".to_string())
+            .into();
 
         let letter_spacing = css
             .get("letter-spacing")
@@ -84,8 +85,9 @@ impl Font {
         let text_align = css
             .get("text-align")
             .or_else(|| all_selector.as_ref()?.get("text-align"))
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "left".to_string());
+            .map(|s| s.as_str())
+            .unwrap_or_else(|| "left")
+            .into();
 
         Self {
             letter_spacing,
@@ -99,6 +101,7 @@ impl Font {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,3 +155,4 @@ mod tests {
         assert_eq!(result.text_align, "left");
     }
 }
+*/

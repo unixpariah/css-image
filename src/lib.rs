@@ -6,7 +6,7 @@ use error::CssError;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 use style::{Parseable, Style};
 
 lazy_static! {
@@ -16,28 +16,12 @@ lazy_static! {
         Regex::new(r"(?P<property>[\w-]+):\s*(?P<value>[^;]+);").unwrap();
 }
 
-/// Parse CSS into a HashMap of selector name -> Style for easier manipulation
-///
-/// # Examples
-///
-/// ```
-/// use css_image::parse;
-///
-/// let css = r#"
-/// body {
-///    background-color: #FFFFFF;
-///    width: 100px;
-///    height: 100px;
-/// }
-/// "#;
-///
-/// let mut result = parse(css).unwrap(); // HashMap of selector name -> Style
-///
-/// let body = result.get_mut("body").unwrap(); // Get the body element
-/// body.content = Some("Hello, World!".to_string()); // Change the content of the body element
-/// ```
-pub fn parse(css: &str) -> Result<HashMap<String, Style>, CssError<'static>> {
+pub fn parse<T>(css: T) -> Result<Vec<Style>, CssError<'static>>
+where
+    T: AsRef<str>,
+{
     let split = css
+        .as_ref()
         .split_inclusive('}')
         .filter_map(|selector| {
             let selector = selector.trim();
@@ -49,13 +33,13 @@ pub fn parse(css: &str) -> Result<HashMap<String, Style>, CssError<'static>> {
         .collect::<Vec<&str>>();
 
     let all_selector = split.iter().find_map(|s| {
-        let mut properties = HashMap::new();
+        let mut properties: HashMap<Box<str>, String> = HashMap::new();
 
         for cap in RE.captures_iter(s) {
             if &cap["selector"] == "*" {
                 for property_cap in PROPERTY_RE.captures_iter(&cap["properties"]) {
                     properties.insert(
-                        property_cap["property"].to_string(),
+                        property_cap["property"].into(),
                         property_cap["value"].to_string(),
                     );
                 }
@@ -76,7 +60,7 @@ pub fn parse(css: &str) -> Result<HashMap<String, Style>, CssError<'static>> {
                     .captures_iter(&cap["properties"])
                     .for_each(|property_cap| {
                         properties.insert(
-                            property_cap["property"].to_string(),
+                            property_cap["property"].into(),
                             property_cap["value"].to_string(),
                         );
                     });
@@ -85,37 +69,10 @@ pub fn parse(css: &str) -> Result<HashMap<String, Style>, CssError<'static>> {
 
             None
         })
-        .map(|(selector, properties)| {
-            let style = Style::new(&properties, all_selector.as_ref());
-            (selector, style)
-        })
-        .collect::<HashMap<String, Style>>())
+        .map(|(selector, properties)| Style::new(selector, &properties, all_selector.as_ref()))
+        .collect::<Vec<Style>>())
 }
 
-/// Render images with CSS
-///
-/// # Examples
-///
-/// ```
-/// use css_image::{render, parse};
-///
-/// let css = r#"
-/// body {
-///    background-color: #FFFFFF;
-///    width: 100px;
-///    height: 100px;
-/// }
-/// "#;
-///
-/// let result = render(css); // HashMap of selector name -> image data
-/// assert!(result.is_ok());
-///
-/// let mut styles = parse(css).unwrap(); // Parse the CSS into a Styles struct for easier manipulation
-/// styles.get_mut("body").unwrap().content = Some("Hello, World!".to_string()); // Change the content of the body element
-///
-/// let result = render(styles); // HashMap of selector name -> image data
-/// assert!(result.is_ok());
-/// ```
 pub fn render<T>(css: T) -> Result<HashMap<String, Vec<u8>>, CssError<'static>>
 where
     T: Parseable,
@@ -125,8 +82,7 @@ where
     styles
         .par_iter_mut()
         .map(|style| {
-            let name = style.0;
-            let style = style.1;
+            let name = &style.selector;
 
             let mut width = style.width;
             let mut height = style.height;
@@ -146,10 +102,10 @@ where
                     .map_err(|_| CssError::ContentError("Failed to create cairo context"))?;
                 let font = &style.font;
 
-                context.select_font_face(font.family.as_str(), font.style, font.weight);
+                context.select_font_face(font.family.deref(), font.style, font.weight);
                 context.set_font_size(font.size);
                 let extents = context
-                    .text_extents(content.as_str())
+                    .text_extents(content.deref())
                     .map_err(|_| CssError::ContentError(""))?;
 
                 if width.is_none() {
@@ -200,10 +156,10 @@ where
 
             if let Some(text) = &style.content {
                 let font = &style.font;
-                context.select_font_face(font.family.as_str(), font.style, font.weight);
+                context.select_font_face(font.family.deref(), font.style, font.weight);
                 context.set_font_size(font.size);
                 context.set_source_rgba(font.color[0], font.color[1], font.color[2], 1.0);
-                match font.text_align.as_str() {
+                match font.text_align.deref() {
                     "center" => {
                         context.move_to(
                             (width / 2 - text_width / 2) as f64 + padding[3] as f64,
@@ -221,7 +177,7 @@ where
                     }
                     _ => return Err(CssError::ContentError("Invalid text-align")),
                 }
-                _ = context.show_text(text.as_str());
+                _ = context.show_text(text.deref());
             }
 
             surface

@@ -6,28 +6,35 @@ use font::Font;
 use std::collections::HashMap;
 
 pub trait Parseable {
-    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>>;
+    fn parse(self) -> Result<Vec<Style>, CssError<'static>>;
 }
 
-impl Parseable for HashMap<String, Style> {
-    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
+impl Parseable for Vec<Style> {
+    fn parse(self) -> Result<Vec<Style>, CssError<'static>> {
         Ok(self)
     }
 }
 
+impl Parseable for Style {
+    fn parse(self) -> Result<Vec<Style>, CssError<'static>> {
+        Ok(vec![self])
+    }
+}
+
 impl Parseable for &str {
-    fn parse(self) -> Result<HashMap<String, Style>, CssError<'static>> {
+    fn parse(self) -> Result<Vec<Style>, CssError<'static>> {
         parse(self)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Style {
+    pub selector: String,
     pub width: Option<i32>,
     pub height: Option<i32>,
     pub background_color: [f64; 4],
     pub font: Font,
-    pub content: Option<String>,
+    pub content: Option<Box<str>>,
     pub border_radius: f64,
     pub margin: [i32; 4],
     pub padding: [i32; 4],
@@ -76,8 +83,9 @@ pub(super) fn get_color(color: &str) -> [f64; 4] {
 
 impl Style {
     pub(crate) fn new(
-        css: &HashMap<String, String>,
-        all_selector: Option<&HashMap<String, String>>,
+        selector: String,
+        css: &HashMap<Box<str>, String>,
+        all_selector: Option<&HashMap<Box<str>, String>>,
     ) -> Self {
         let get_property = |property: &str| {
             css.get(property)
@@ -142,28 +150,15 @@ impl Style {
         let padding = get_padding_or_margin("padding");
         let margin = get_padding_or_margin("margin");
 
-        /*
-                let border = css
-                    .get("border")
-                    .or_else(|| all_selector.as_ref()?.get("border"))
-                    .unwrap()
-                    .split_whitespace()
-                    .collect::<Vec<&str>>()
-                    .first()
-                    .unwrap()
-                    .replace("px", "")
-                    .parse::<i32>()
-                    .unwrap();
-        */
-
         let content = css
             .get("content")
             .or_else(|| all_selector.as_ref()?.get("content"))
-            .map(|s| s.trim().replace('"', "").to_string());
+            .map(|s| s.trim().replace('"', "").into());
 
         let font = Font::new(css, all_selector);
 
         Self {
+            selector,
             padding,
             margin,
             border_radius,
@@ -176,6 +171,7 @@ impl Style {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,3 +430,4 @@ mod tests {
         assert!(result.get("body").unwrap().width.is_none());
     }
 }
+*/

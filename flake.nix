@@ -25,7 +25,6 @@
             cargo
             rustup
             rustc
-            nodePackages_latest.nodejs
             clippy
           ];
         };

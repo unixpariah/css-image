@@ -51,7 +51,7 @@ let css = r#"
     "#;
 
 let mut styles = css.parse::<Styles>().unwrap(); // Parse css string to Styles for easier access
-styles.get_mut("body").unwrap().content = "Hello world!"; // Set content of body to "Hello world!"
+styles.get_mut("body").unwrap().content.replace("Hello world!".into()); // Set content of body to "Hello world!"
 
 let images = render(styles).unwrap(); // Returns a hashmap of css selector -> Image
 ```
